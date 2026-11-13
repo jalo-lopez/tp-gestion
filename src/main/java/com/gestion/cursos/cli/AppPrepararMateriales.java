@@ -25,10 +25,10 @@ import java.util.*;
  */
 public class AppPrepararMateriales {
 
-    private static final String DEFAULT_JDBC_URL = "jdbc:postgresql://localhost:5432/gestion_cursos";
-    private static final String DEFAULT_JDBC_USER = "postgres";
-    private static final String DEFAULT_JDBC_PASS = "postgres";
-    private static final String DEFAULT_JDBC_DRIVER = "org.postgresql.Driver";
+    private static final String DEFAULT_JDBC_URL = "jdbc:h2:file:/tmp/flowable_db;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
+    private static final String DEFAULT_JDBC_USER = "sa";
+    private static final String DEFAULT_JDBC_PASS = "";
+    private static final String DEFAULT_JDBC_DRIVER = "org.h2.Driver";
     public static final String PROCESS_KEY = "procesoGestionCursos";
 
     public static void main(String[] args) {
