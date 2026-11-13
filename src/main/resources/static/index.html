@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitud de Capacitación Corporativa | Gestión BPM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header__container">
+      <a href="index.html" class="header__brand">
+        <div class="header__logo-icon">BPM</div>
+        <span class="header__title">Gestión de Procesos & Cursos</span>
+      </a>
+      <nav class="header__nav">
+        <a href="index.html" class="header__link header__link--active">Solicitar Capacitación</a>
+        <a href="panel-empresa.html" class="header__link">Portal Empresa</a>
+        <a href="panel-admin.html" class="header__link">Panel Administrativo</a>
+        <a href="panel-docente.html" class="header__link">Portal Docente (Móvil)</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-content">
+    <section class="card">
+      <header class="card__header">
+        <h1 class="card__title">Solicitud de Capacitación para Empresas</h1>
+        <p class="card__subtitle">Complete el siguiente formulario institucional para iniciar el flujo de evaluación y aprobación académica.</p>
+      </header>
+
+      <div class="card__body">
+        <form id="form-solicitud" class="form">
+          <div class="form-grid">
+            
+            <div class="form-group">
+              <label for="cursoId" class="form-label form-label--required">Código / Identificador de Solicitud</label>
+              <input type="text" id="cursoId" class="form-input" placeholder="Ej: CURSO-TECH-2026" required>
+            </div>
+
+            <div class="form-group">
+              <label for="nombreEmpresa" class="form-label form-label--required">Nombre de la Empresa o Entidad</label>
+              <input type="text" id="nombreEmpresa" class="form-input" placeholder="Ej: Tech Solutions S.A." required>
+            </div>
+
+            <div class="form-group">
+              <label for="tematica" class="form-label form-label--required">Temática / Nombre del Curso</label>
+              <input type="text" id="tematica" class="form-input" placeholder="Ej: Modelado BPMN 2.0 y Arquitectura de Procesos" required>
+            </div>
+
+            <div class="form-group">
+              <label for="categoria" class="form-label form-label--required">Área o Categoría Académica</label>
+              <select id="categoria" class="form-select" required>
+                <option value="">Seleccione un área...</option>
+                <option value="Ingeniería y Procesos">Ingeniería y Procesos de Negocio</option>
+                <option value="Tecnologías de la Información">Tecnologías de la Información</option>
+                <option value="Gestión Empresarial">Gestión y Dirección Empresarial</option>
+                <option value="Transformación Digital">Transformación Digital</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="emailSolicitante" class="form-label form-label--required">Correo Electrónico Corporativo</label>
+              <input type="email" id="emailSolicitante" class="form-input" placeholder="contacto@empresa.com" required>
+            </div>
+
+            <div class="form-group">
+              <label for="participantes" class="form-label form-label--required">Cantidad Estimada de Participantes</label>
+              <input type="number" id="participantes" class="form-input" min="1" max="500" placeholder="Ej: 25" required>
+            </div>
+
+            <div class="form-group form-group--full">
+              <label for="descripcion" class="form-label">Objetivos y Requerimientos Específicos</label>
+              <textarea id="descripcion" class="form-textarea" placeholder="Describa el perfil de los colaboradores y expectativas de capacitación..."></textarea>
+            </div>
+
+          </div>
+
+          <div class="card__footer" style="margin-top: 1.5rem; padding: 1.25rem 0 0 0; background: none; border-top: 1px solid var(--color-border);">
+            <button type="reset" class="btn btn--secondary">Limpiar Campos</button>
+            <button type="submit" id="btn-enviar" class="btn btn--primary">
+              <span>Iniciar Solicitud en Flowable</span> →
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- TARJETA DE CONFIRMACIÓN (Oculta por defecto) -->
+    <section id="confirmacion-card" class="card" style="display: none; margin-top: 2rem; border-left: 5px solid var(--color-success);">
+      <div class="card__body" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 2rem; color: var(--color-success);">✓</span>
+          <div>
+            <h2 class="card__title" style="color: var(--color-success);">¡Proceso de Capacitación Iniciado Exitosamente!</h2>
+            <p class="card__subtitle">La solicitud ha ingresado al motor Flowable BPM y ha sido asignada a nuestro equipo administrativo mediante balanceo de carga.</p>
+          </div>
+        </div>
+
+        <div style="background: #f1f5f9; padding: 1rem 1.25rem; border-radius: var(--radius-md); font-family: monospace; font-size: 0.95rem;">
+          <p><strong>ID de Proceso Flowable:</strong> <span id="conf-process-id" style="color: var(--color-primary);">-</span></p>
+          <p><strong>Código del Curso (Business Key):</strong> <span id="conf-curso-id">-</span></p>
+          <p><strong>Estado Inicial:</strong> <span class="badge badge--progress">EN_PROCESO</span></p>
+        </div>
+
+        <div>
+          <a id="btn-ver-estado" href="panel-empresa.html" class="btn btn--primary">
+            Ir al Portal de Empresa para Seguimiento
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Gestión y Tecnologías de Procesos de Negocio • Motor Flowable BPM & Spring Boot</p>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('form-solicitud');
+      const btnEnviar = document.getElementById('btn-enviar');
+      const confirmacionCard = document.getElementById('confirmacion-card');
+      const confProcessId = document.getElementById('conf-process-id');
+      const confCursoId = document.getElementById('conf-curso-id');
+      const btnVerEstado = document.getElementById('btn-ver-estado');
+
+      // Generar automáticamente un código de curso único inicial
+      document.getElementById('cursoId').value = 'CURSO-' + Math.floor(1000 + Math.random() * 9000);
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const payload = {
+          cursoId: document.getElementById('cursoId').value.trim(),
+          nombreCurso: document.getElementById('tematica').value.trim(),
+          categoria: document.getElementById('categoria').value,
+          emailSolicitante: document.getElementById('emailSolicitante').value.trim(),
+          cupoMaximo: parseInt(document.getElementById('participantes').value, 10),
+          descripcion: document.getElementById('descripcion').value.trim()
+        };
+
+        try {
+          btnEnviar.disabled = true;
+          btnEnviar.innerHTML = 'Procesando en Flowable...';
+
+          const resultado = await api.iniciarProceso(payload);
+
+          showToast('Proceso instanciado con éxito en el motor BPM', 'success');
+
+          // Mostrar resultado
+          confProcessId.textContent = resultado.processInstanceId;
+          confCursoId.textContent = resultado.businessKey;
+          btnVerEstado.href = `panel-empresa.html?id=${encodeURIComponent(resultado.businessKey)}`;
+          
+          confirmacionCard.style.display = 'block';
+          confirmacionCard.scrollIntoView({ behavior: 'smooth' });
+
+          form.reset();
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        } finally {
+          btnEnviar.disabled = false;
+          btnEnviar.innerHTML = '<span>Iniciar Solicitud en Flowable</span> →';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

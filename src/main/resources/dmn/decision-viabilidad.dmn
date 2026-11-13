@@ -1,0 +1,38 @@
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="definition_decisionViabilidad"
+             name="Decision Viabilidad"
+             namespace="http://flowable.org/dmn">
+    <decision id="decisionViabilidad" name="Evaluar Viabilidad">
+        <decisionTable id="decisionTable_viabilidad" hitPolicy="FIRST">
+            <input id="input_cantInstancias" label="Cantidad de Instancias Activas">
+                <inputExpression id="inputExpression_cantInstancias" typeRef="number">
+                    <text>cantInstanciasActivas</text>
+                </inputExpression>
+            </input>
+            <output id="output_esViable" label="Es Viable" name="esViable" typeRef="boolean" />
+            <output id="output_resultado" label="Resultado" name="resultado" typeRef="string" />
+            <rule id="rule_viable">
+                <inputEntry id="inputEntry_1">
+                    <text>&lt; 5</text>
+                </inputEntry>
+                <outputEntry id="outputEntry_1">
+                    <text>true</text>
+                </outputEntry>
+                <outputEntry id="outputEntry_2">
+                    <text>"viable"</text>
+                </outputEntry>
+            </rule>
+            <rule id="rule_no_viable">
+                <inputEntry id="inputEntry_2">
+                    <text>&gt;= 5</text>
+                </inputEntry>
+                <outputEntry id="outputEntry_3">
+                    <text>false</text>
+                </outputEntry>
+                <outputEntry id="outputEntry_4">
+                    <text>"no viable"</text>
+                </outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

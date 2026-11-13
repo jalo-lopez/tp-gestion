@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gestion-cursos-bpm
+
+  # Configuración de Datasource:
+  # Por defecto utiliza H2 en memoria para que el proyecto arranque directamente sin instalar nada.
+  # Para conectar a Supabase / PostgreSQL en la nube, defina las variables de entorno:
+  # SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:/tmp/flowable_db;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+# Configuración del Motor Flowable BPM
+flowable:
+  # 'true' crea o actualiza las tablas del motor de procesos (ACT_*) automáticamente al iniciar
+  database-schema-update: true
+  # Activa el ejecutor asíncrono (temporizadores, tareas asíncronas, etc.)
+  async-executor-activate: true
+  # Habilita el despliegue automático de archivos .bpmn y .dmn
+  check-process-definitions: true
+  process:
+    # Asegura la inicialización inmediata del servlet REST de Flowable
+    servlet:
+      load-on-startup: 1
+      path: /process-api
+
+# Configuración de Logs
+logging:
+  level:
+    root: INFO
+    com.gestion.cursos: DEBUG
+    org.flowable.engine: INFO
+    org.springframework.web: INFO

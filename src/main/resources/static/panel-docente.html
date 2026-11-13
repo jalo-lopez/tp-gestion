@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Portal Docente Móvil | Gestión de Cursos Flowable</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --success: #10b981;
+            --dark: #0f172a;
+            --card-bg: #ffffff;
+            --bg: #f1f5f9;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--dark);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-header {
+            background: var(--primary);
+            color: #ffffff;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .mobile-header h1 {
+            font-size: 1.15rem;
+            margin: 0;
+            font-weight: 700;
+        }
+        .badge-role {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+        .user-selector-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .user-selector-card label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .mobile-select, .mobile-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: #fff;
+            color: #0f172a;
+        }
+        .mobile-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            border-left: 5px solid var(--primary-light);
+        }
+        .mobile-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.05rem;
+            color: var(--primary);
+        }
+        .mobile-card p {
+            margin: 4px 0;
+            font-size: 0.88rem;
+            color: #475569;
+        }
+        .mobile-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 12px;
+            box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2);
+        }
+        .mobile-btn:active {
+            transform: scale(0.98);
+        }
+        .mobile-btn-success {
+            background: var(--success);
+        }
+        .mobile-btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+        }
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .nav-links a {
+            color: var(--primary);
+            font-size: 0.85rem;
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="mobile-header">
+        <div>
+            <h1>Portal Móvil Docente</h1>
+            <span class="badge-role" id="lblRol">Jefe Equipo Docente</span>
+        </div>
+        <button id="btnRefrescar" class="mobile-btn" style="width: auto; padding: 6px 12px; margin: 0; font-size: 0.8rem;">↻</button>
+    </header>
+
+    <div class="container">
+        <!-- Selector de Usuario Docente -->
+        <div class="user-selector-card">
+            <label for="selectUsuario">Identidad Flowable (Docente):</label>
+            <select id="selectUsuario" class="mobile-select">
+                <option value="docente_carlos" selected>Carlos Rodríguez (docente_carlos - Jefe Docente)</option>
+                <option value="docente_ana">Ana Fernández (docente_ana - Docente)</option>
+                <option value="docente_pedro">Pedro López (docente_pedro - Docente)</option>
+            </select>
+        </div>
+
+        <!-- Listado de Tareas Pendientes -->
+        <div id="contenedorTareas">
+            <div class="empty-state">Cargando tareas pendientes...</div>
+        </div>
+
+        <div class="nav-links">
+            <a href="index.html">← Formulario Público</a>
+            <span>•</span>
+            <a href="panel-admin.html">Panel Admin</a>
+            <span>•</span>
+            <a href="panel-empresa.html">Portal Empresa</a>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/v1/cursos/procesos';
+        const selectUsuario = document.getElementById('selectUsuario');
+        const lblRol = document.getElementById('lblRol');
+        const contenedorTareas = document.getElementById('contenedorTareas');
+        const btnRefrescar = document.getElementById('btnRefrescar');
+
+        selectUsuario.addEventListener('change', () => {
+            const u = selectUsuario.value;
+            lblRol.textContent = (u === 'docente_carlos') ? 'Jefe Equipo Docente' : 'Docente Regular';
+            cargarTareas();
+        });
+
+        btnRefrescar.addEventListener('click', cargarTareas);
+
+        async function cargarTareas() {
+            const usuario = selectUsuario.value;
+            contenedorTareas.innerHTML = '<div class="empty-state">Consultando Flowable BPM...</div>';
+
+            try {
+                const res = await fetch(`${API_URL}/tareas/pendientes?usuario=${encodeURIComponent(usuario)}`);
+                const json = await res.json();
+                const tareas = json.datos || [];
+
+                if (tareas.length === 0) {
+                    contenedorTareas.innerHTML = `
+                        <div class="empty-state">
+                            <h3>¡Todo al día!</h3>
+                            <p>No tienes tareas asignadas pendientes en este momento.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                tareas.forEach(t => {
+                    const vars = t.variables || {};
+                    const nombreCurso = vars.nombreCurso || 'Curso de Capacitación';
+                    const cursoId = vars.cursoId || 'S/C';
+
+                    if (t.taskName === 'Definir Docente que desarrolla el curso') {
+                        html += `
+                            <div class="mobile-card" style="border-left-color: #2563eb;">
+                                <h3>📋 ${t.taskName}</h3>
+                                <p><strong>Curso:</strong> ${nombreCurso} (${cursoId})</p>
+                                <p><strong>Cupo estimado:</strong> ${vars.cupoMaximo || 20} alumnos</p>
+                                <div style="margin-top: 12px;">
+                                    <label style="font-size:0.85rem; font-weight:600; color:#475569;">Seleccionar docente asignado:</label>
+                                    <select id="docenteAsignado_${t.taskId}" class="mobile-select" style="margin-top:4px;">
+                                        <option value="docente_carlos">Carlos Rodríguez (Jefe docente)</option>
+                                        <option value="docente_ana">Ana Fernández (Docente regular)</option>
+                                        <option value="docente_pedro">Pedro López (Docente regular)</option>
+                                    </select>
+                                    <button class="mobile-btn" onclick="completarDefinirDocente('${t.taskId}')">
+                                        Asignar y Confirmar Docente
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else if (t.taskName === 'Desarrollar curso') {
+                        html += `
+                            <div class="mobile-card" style="border-left-color: #10b981;">
+                                <h3>🎓 ${t.taskName}</h3>
+                                <p><strong>Curso:</strong> ${nombreCurso} (${cursoId})</p>
+                                <p><strong>Docente Responsable:</strong> ${t.assignee}</p>
+                                <p><strong>Fecha Programada:</strong> ${vars.fechaInicioCurso || 'A convenir'}</p>
+                                <button class="mobile-btn mobile-btn-success" onclick="completarDictado('${t.taskId}')">
+                                    Registrar Finalización de Dictado
+                                </button>
+                            </div>
+                        `;
+                    } else if (t.taskName === 'Elaborar informe de resultados') {
+                        html += `
+                            <div class="mobile-card" style="border-left-color: #8b5cf6;">
+                                <h3>📊 ${t.taskName}</h3>
+                                <p><strong>Curso:</strong> ${nombreCurso} (${cursoId})</p>
+                                <div style="margin-top: 12px;">
+                                    <label style="font-size:0.85rem; font-weight:600; color:#475569;">Conclusiones / Resultados del Dictado:</label>
+                                    <textarea id="informe_${t.taskId}" class="mobile-input" rows="3" style="margin-top:4px;" placeholder="Ingrese el resumen del dictado...">Curso finalizado con éxito. Los estudiantes alcanzaron las competencias previstas con alta asistencia.</textarea>
+                                    <button class="mobile-btn" style="background:#8b5cf6;" onclick="completarInforme('${t.taskId}')">
+                                        Generar y Adjuntar Informe
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="mobile-card">
+                                <h3>📌 ${t.taskName}</h3>
+                                <p><strong>Curso:</strong> ${nombreCurso} (${cursoId})</p>
+                                <button class="mobile-btn" onclick="completarGenerica('${t.taskId}')">Completar Tarea</button>
+                            </div>
+                        `;
+                    }
+                });
+
+                contenedorTareas.innerHTML = html;
+
+            } catch (err) {
+                contenedorTareas.innerHTML = `<div class="empty-state" style="color:#ef4444;">Error conectando al servidor: ${err.message}</div>`;
+            }
+        }
+
+        async function completarDefinirDocente(taskId) {
+            const docente = document.getElementById(`docenteAsignado_${taskId}`).value;
+            const payload = {
+                aprobado: true,
+                observaciones: `Docente asignado: ${docente}`,
+                variablesAdicionales: {
+                    docenteAsignado: docente
+                }
+            };
+            await enviarCompletar(taskId, payload);
+        }
+
+        async function completarDictado(taskId) {
+            if (!confirm('¿Confirma que se ha completado el dictado total de las clases del curso?')) return;
+            const payload = {
+                aprobado: true,
+                observaciones: 'Dictado del curso concluido exitosamente.',
+                variablesAdicionales: {
+                    dictadoCompletado: 'Completado con éxito'
+                }
+            };
+            await enviarCompletar(taskId, payload);
+        }
+
+        async function completarInforme(taskId) {
+            const texto = document.getElementById(`informe_${taskId}`).value;
+            const payload = {
+                aprobado: true,
+                observaciones: texto,
+                variablesAdicionales: {
+                    informeResultados: texto
+                }
+            };
+            await enviarCompletar(taskId, payload);
+        }
+
+        async function completarGenerica(taskId) {
+            const payload = { aprobado: true, observaciones: 'Completado desde portal móvil' };
+            await enviarCompletar(taskId, payload);
+        }
+
+        async function enviarCompletar(taskId, payload) {
+            try {
+                const res = await fetch(`${API_URL}/tareas/${taskId}/completar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    alert('✓ Tarea completada con éxito en Flowable BPM');
+                    cargarTareas();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.mensaje || 'Fallo al completar'));
+                }
+            } catch (e) {
+                alert('Error de conexión: ' + e.message);
+            }
+        }
+
+        // Carga inicial
+        cargarTareas();
+    </script>
+</body>
+</html>

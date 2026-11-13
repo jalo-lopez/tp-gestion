@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://gestion.cursos/bpm">
+
+    <!-- Mensajes para comunicaciones asíncronas de la empresa (Sección 1.1, 1.2, 1.3, 4.2.2) -->
+    <message id="msgAceptacion" name="msgAceptacion" />
+    <message id="msgRechazo" name="msgRechazo" />
+    <message id="msgModificaciones" name="msgModificaciones" />
+    <message id="msgRecibirNomina" name="msgRecibirNomina" />
+    <message id="msgRecibirCancelacion" name="msgRecibirCancelacion" />
+
+    <!-- Error de cancelación de subproceso (Sección 1.3) -->
+    <error id="errCancelacion" errorCode="ERR_CANCELACION" />
+
+    <!-- Colaboración y Carriles (Lanes) según Figura 1 -->
+    <collaboration id="collabGestionCursos">
+        <participant id="poolInstitucion" name="Institución de capacitación" processRef="procesoGestionCursos" />
+    </collaboration>
+
+    <process id="procesoGestionCursos" name="Proceso de Gestión y Aprobación de Cursos" isExecutable="true">
+
+        <laneSet id="laneSetInstitucion">
+            <lane id="laneAdministracion" name="Administración">
+                <flowNodeRef>startEvent</flowNodeRef>
+                <flowNodeRef>evaluarViabilidadTask</flowNodeRef>
+                <flowNodeRef>gatewayEsViable</flowNodeRef>
+                <flowNodeRef>notificarNoViableTask</flowNodeRef>
+                <flowNodeRef>endEventNoViable</flowNodeRef>
+                <flowNodeRef>registrarElaborarPropuestaTask</flowNodeRef>
+                <flowNodeRef>enviarPropuestaTask</flowNodeRef>
+                <flowNodeRef>eventGatewayEsperarRespuesta</flowNodeRef>
+                <flowNodeRef>catchModificaciones</flowNodeRef>
+                <flowNodeRef>revisarPropuestaTask</flowNodeRef>
+                <flowNodeRef>timerEsperarRespuesta</flowNodeRef>
+                <flowNodeRef>gatewayRecordatorios</flowNodeRef>
+                <flowNodeRef>enviarRecordatorioTask</flowNodeRef>
+                <flowNodeRef>archivarSolicitudSinRespuestaTask</flowNodeRef>
+                <flowNodeRef>endEventSinRespuesta</flowNodeRef>
+                <flowNodeRef>catchRechazo</flowNodeRef>
+                <flowNodeRef>archivarSolicitudRechazadaTask</flowNodeRef>
+                <flowNodeRef>endEventRechazada</flowNodeRef>
+                <flowNodeRef>catchAceptacion</flowNodeRef>
+                <flowNodeRef>habilitarAccesoEmpresaTask</flowNodeRef>
+                <flowNodeRef>subProcessPrepararCurso</flowNodeRef>
+                <flowNodeRef>catchErrCancelacion</flowNodeRef>
+                <flowNodeRef>notificarCierreTask</flowNodeRef>
+                <flowNodeRef>endEventCancelado</flowNodeRef>
+                <flowNodeRef>enviarConfirmacionTask</flowNodeRef>
+                <flowNodeRef>enviarInformeArchivarTask</flowNodeRef>
+                <flowNodeRef>endEventFinalizado</flowNodeRef>
+            </lane>
+            <lane id="laneDocentes" name="Docentes">
+                <flowNodeRef>definirDocenteTask</flowNodeRef>
+                <flowNodeRef>timerFechaProgramada</flowNodeRef>
+                <flowNodeRef>desarrollarCursoTask</flowNodeRef>
+                <flowNodeRef>elaborarInformeResultadosTask</flowNodeRef>
+            </lane>
+        </laneSet>
+
+        <!-- 1. Inicio: Recepción de Solicitud -->
+        <startEvent id="startEvent" name="Solicitud recibida" />
+
+        <sequenceFlow id="flowStartToEvaluar" sourceRef="startEvent" targetRef="evaluarViabilidadTask" />
+
+        <!-- 2. Decision Task DMN: Evaluar Viabilidad (< 5 instancias activas, Sección 3.1) -->
+        <serviceTask id="evaluarViabilidadTask" name="Evaluar Viabilidad" flowable:type="dmn">
+            <extensionElements>
+                <flowable:executionListener event="start" delegateExpression="${prepararViabilidadExecutionListener}" />
+                <flowable:field name="decisionTableReferenceKey">
+                    <flowable:string>decisionViabilidad</flowable:string>
+                </flowable:field>
+            </extensionElements>
+        </serviceTask>
+
+        <sequenceFlow id="flowEvaluarToGateway" sourceRef="evaluarViabilidadTask" targetRef="gatewayEsViable" />
+
+        <!-- 3. Compuerta Es Viable? -->
+        <exclusiveGateway id="gatewayEsViable" name="Es viable?" />
+
+        <sequenceFlow id="flowNoViable" name="no" sourceRef="gatewayEsViable" targetRef="notificarNoViableTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${esViable == false}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flowViable" name="si" sourceRef="gatewayEsViable" targetRef="registrarElaborarPropuestaTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${esViable == true}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- Rama No Viable -->
+        <serviceTask id="notificarNoViableTask" name="Notificar Decisión"
+                     flowable:expression="${cursoProcessService.notificarNoViable(execution)}" />
+
+        <sequenceFlow id="flowFinNoViable" sourceRef="notificarNoViableTask" targetRef="endEventNoViable" />
+
+        <endEvent id="endEventNoViable" name="Solicitud no viable finalizada">
+            <extensionElements>
+                <flowable:executionListener event="end" delegateExpression="${actualizarEstadoCursoExecutionListener}" />
+            </extensionElements>
+        </endEvent>
+
+        <!-- Rama Viable: Jefe administrativo elabora propuesta -->
+        <userTask id="registrarElaborarPropuestaTask" name="Registrar y Elaborar propuesta"
+                  flowable:assignee="admin_laura" />
+
+        <sequenceFlow id="flowPropuestaToEnviar" sourceRef="registrarElaborarPropuestaTask" targetRef="enviarPropuestaTask" />
+
+        <serviceTask id="enviarPropuestaTask" name="Enviar propuesta"
+                     flowable:expression="${cursoProcessService.enviarPropuesta(execution)}" />
+
+        <sequenceFlow id="flowEnviarToEsperar" sourceRef="enviarPropuestaTask" targetRef="eventGatewayEsperarRespuesta" />
+
+        <!-- 4. Compuerta Basada en Eventos: Esperar respuesta -->
+        <eventBasedGateway id="eventGatewayEsperarRespuesta" name="Esperar respuesta" />
+
+        <!-- Rama A: Modificaciones -->
+        <sequenceFlow id="flowToCatchModif" sourceRef="eventGatewayEsperarRespuesta" targetRef="catchModificaciones" />
+        <intermediateCatchEvent id="catchModificaciones" name="Modificaciones">
+            <messageEventDefinition messageRef="msgModificaciones" />
+        </intermediateCatchEvent>
+
+        <sequenceFlow id="flowModifToRevisar" sourceRef="catchModificaciones" targetRef="revisarPropuestaTask" />
+        <userTask id="revisarPropuestaTask" name="Revisar propuesta" flowable:assignee="admin_laura" />
+        <sequenceFlow id="flowRevisarToEnviar" sourceRef="revisarPropuestaTask" targetRef="enviarPropuestaTask" />
+
+        <!-- Rama B: Temporizador Recordatorio (5 días o configurable para test) -->
+        <sequenceFlow id="flowToTimer" sourceRef="eventGatewayEsperarRespuesta" targetRef="timerEsperarRespuesta" />
+        <intermediateCatchEvent id="timerEsperarRespuesta" name="5 días">
+            <timerEventDefinition>
+                <timeDuration>${timerDurationPropuesta}</timeDuration>
+            </timerEventDefinition>
+        </intermediateCatchEvent>
+
+        <sequenceFlow id="flowTimerToGatewayRec" sourceRef="timerEsperarRespuesta" targetRef="gatewayRecordatorios" />
+
+        <exclusiveGateway id="gatewayRecordatorios" name="¿Se enviaron 2 recordatorios?" />
+
+        <sequenceFlow id="flowRecordatorioNo" name="No" sourceRef="gatewayRecordatorios" targetRef="enviarRecordatorioTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${recordatoriosEnviados < 2}]]></conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flowRecordatorioSi" name="Sí" sourceRef="gatewayRecordatorios" targetRef="archivarSolicitudSinRespuestaTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${recordatoriosEnviados >= 2}]]></conditionExpression>
+        </sequenceFlow>
+
+        <serviceTask id="enviarRecordatorioTask" name="Enviar recordatorio"
+                     flowable:expression="${cursoProcessService.enviarRecordatorio(execution)}" />
+        <sequenceFlow id="flowLoopRecordatorio" sourceRef="enviarRecordatorioTask" targetRef="eventGatewayEsperarRespuesta" />
+
+        <userTask id="archivarSolicitudSinRespuestaTask" name="Archivar solicitud" flowable:assignee="admin_laura" />
+        <sequenceFlow id="flowArchivarToFinSinResp" sourceRef="archivarSolicitudSinRespuestaTask" targetRef="endEventSinRespuesta" />
+
+        <endEvent id="endEventSinRespuesta" name="Solicitud cerrada por falta de respuesta">
+            <extensionElements>
+                <flowable:executionListener event="end" delegateExpression="${actualizarEstadoCursoExecutionListener}" />
+            </extensionElements>
+        </endEvent>
+
+        <!-- Rama C: Rechazo -->
+        <sequenceFlow id="flowToCatchRechazo" sourceRef="eventGatewayEsperarRespuesta" targetRef="catchRechazo" />
+        <intermediateCatchEvent id="catchRechazo" name="Rechazo">
+            <messageEventDefinition messageRef="msgRechazo" />
+        </intermediateCatchEvent>
+
+        <sequenceFlow id="flowRechazoToArchivar" sourceRef="catchRechazo" targetRef="archivarSolicitudRechazadaTask" />
+        <userTask id="archivarSolicitudRechazadaTask" name="Archivar solicitud" flowable:assignee="admin_laura" />
+        <sequenceFlow id="flowArchivarToFinRechazo" sourceRef="archivarSolicitudRechazadaTask" targetRef="endEventRechazada" />
+
+        <endEvent id="endEventRechazada" name="Solicitud cerrada por rechazo">
+            <extensionElements>
+                <flowable:executionListener event="end" delegateExpression="${actualizarEstadoCursoExecutionListener}" />
+            </extensionElements>
+        </endEvent>
+
+        <!-- Rama D: Aceptación -->
+        <sequenceFlow id="flowToCatchAceptacion" sourceRef="eventGatewayEsperarRespuesta" targetRef="catchAceptacion" />
+        <intermediateCatchEvent id="catchAceptacion" name="Aceptación">
+            <messageEventDefinition messageRef="msgAceptacion" />
+        </intermediateCatchEvent>
+
+        <sequenceFlow id="flowAceptacionToHabilitar" sourceRef="catchAceptacion" targetRef="habilitarAccesoEmpresaTask" />
+
+        <serviceTask id="habilitarAccesoEmpresaTask" name="Habilitar acceso de la empresa"
+                     flowable:expression="${cursoProcessService.habilitarAccesoEmpresa(execution)}" />
+
+        <sequenceFlow id="flowHabilitarToSubproceso" sourceRef="habilitarAccesoEmpresaTask" targetRef="subProcessPrepararCurso" />
+
+        <!-- ================================================================= -->
+        <!-- 5. Subproceso Embebido: Preparar curso (Sección 1.2 y 1.3)          -->
+        <!-- ================================================================= -->
+        <subProcess id="subProcessPrepararCurso" name="Preparar curso">
+
+            <startEvent id="startSubProcess" />
+
+            <sequenceFlow id="flowSubStartToFork" sourceRef="startSubProcess" targetRef="forkPreparacion" />
+
+            <!-- División paralela en 3 ramas -->
+            <parallelGateway id="forkPreparacion" name="Preparación en paralelo" />
+
+            <!-- Rama 1: Inscripciones (Recibir nómina -> Confeccionar lista definitiva) -->
+            <sequenceFlow id="flowForkToNomina" sourceRef="forkPreparacion" targetRef="catchRecibirNomina" />
+
+            <intermediateCatchEvent id="catchRecibirNomina" name="Recibir nómina">
+                <messageEventDefinition messageRef="msgRecibirNomina" />
+            </intermediateCatchEvent>
+
+            <sequenceFlow id="flowNominaToLista" sourceRef="catchRecibirNomina" targetRef="confeccionarListaDefinitivaTask" />
+
+            <userTask id="confeccionarListaDefinitivaTask" name="Confeccionar lista definitiva">
+                <extensionElements>
+                    <flowable:taskListener event="create" delegateExpression="${asignacionBalanceoTaskListener}" />
+                </extensionElements>
+            </userTask>
+
+            <sequenceFlow id="flowListaToJoin" sourceRef="confeccionarListaDefinitivaTask" targetRef="joinPreparacion" />
+
+            <!-- Rama 2: Materiales (Preparar materiales) -->
+            <sequenceFlow id="flowForkToMateriales" sourceRef="forkPreparacion" targetRef="prepararMaterialesTask" />
+
+            <userTask id="prepararMaterialesTask" name="Preparar materiales" flowable:candidateGroups="Administración" />
+
+            <sequenceFlow id="flowMaterialesToJoin" sourceRef="prepararMaterialesTask" targetRef="joinPreparacion" />
+
+            <!-- Rama 3: Recursos (Evaluar Recursos -> Inclusiva: Aula Física / Virtual / Equipamiento) -->
+            <sequenceFlow id="flowForkToEvaluarRecursos" sourceRef="forkPreparacion" targetRef="evaluarRecursosTask" />
+
+            <userTask id="evaluarRecursosTask" name="Evaluar Recursos" flowable:candidateGroups="Administración" />
+
+            <sequenceFlow id="flowEvaluarToForkRecursos" sourceRef="evaluarRecursosTask" targetRef="forkRecursos" />
+
+            <inclusiveGateway id="forkRecursos" name="Recursos necesarios" />
+
+            <!-- Opción Presencial: Reservar aula física con compensación -->
+            <sequenceFlow id="flowRecursoPresencial" name="Presencial" sourceRef="forkRecursos" targetRef="reservarAulaTask">
+                <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('requiereAulaFisica') == true}]]></conditionExpression>
+            </sequenceFlow>
+
+            <serviceTask id="reservarAulaTask" name="Reservar aula"
+                         flowable:expression="${cursoProcessService.reservarAula(execution)}" />
+
+            <boundaryEvent id="compReservarAula" attachedToRef="reservarAulaTask">
+                <compensateEventDefinition />
+            </boundaryEvent>
+
+            <serviceTask id="liberarAulaTask" name="Liberar Aula" isForCompensation="true"
+                         flowable:expression="${cursoProcessService.liberarAula(execution)}" />
+
+            <sequenceFlow id="flowReservarAulaToJoinRecursos" sourceRef="reservarAulaTask" targetRef="joinRecursos" />
+
+            <!-- Opción Virtual: Solicitar aula virtual con compensación -->
+            <sequenceFlow id="flowRecursoVirtual" name="Virtual" sourceRef="forkRecursos" targetRef="solicitarAulaVirtualTask">
+                <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('requiereAulaVirtual') == true}]]></conditionExpression>
+            </sequenceFlow>
+
+            <userTask id="solicitarAulaVirtualTask" name="Solicitar Aula Virtual" flowable:candidateGroups="Administración" />
+
+            <boundaryEvent id="compSolicitarAulaVirtual" attachedToRef="solicitarAulaVirtualTask">
+                <compensateEventDefinition />
+            </boundaryEvent>
+
+            <serviceTask id="liberarAulaVirtualTask" name="Liberar Aula Virtual" isForCompensation="true"
+                         flowable:expression="${cursoProcessService.liberarAulaVirtual(execution)}" />
+
+            <sequenceFlow id="flowVirtualToJoinRecursos" sourceRef="solicitarAulaVirtualTask" targetRef="joinRecursos" />
+
+            <!-- Opción Equipamiento especial con compensación -->
+            <sequenceFlow id="flowRecursoEquipamiento" name="Equipamiento especial" sourceRef="forkRecursos" targetRef="contratarEquipamientoTask">
+                <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('requiereEquipamiento') == true}]]></conditionExpression>
+            </sequenceFlow>
+
+            <userTask id="contratarEquipamientoTask" name="Contratar equipamiento" flowable:candidateGroups="Administración" />
+
+            <boundaryEvent id="compContratarEquipamiento" attachedToRef="contratarEquipamientoTask">
+                <compensateEventDefinition />
+            </boundaryEvent>
+
+            <userTask id="liberarEquipamientoTask" name="Liberar Equipamiento" isForCompensation="true"
+                      flowable:candidateGroups="Administración" />
+
+            <sequenceFlow id="flowEquipamientoToJoinRecursos" sourceRef="contratarEquipamientoTask" targetRef="joinRecursos" />
+
+            <!-- Unión Inclusiva de Recursos -->
+            <inclusiveGateway id="joinRecursos" name="Todos los recursos seleccionados listos" />
+
+            <sequenceFlow id="flowJoinRecursosToJoinPrep" sourceRef="joinRecursos" targetRef="joinPreparacion" />
+
+            <!-- Sincronización Paralela: Preparación completa -->
+            <parallelGateway id="joinPreparacion" name="Preparación completa" />
+
+            <sequenceFlow id="flowJoinToSubEnd" sourceRef="joinPreparacion" targetRef="endSubProcess" />
+
+            <endEvent id="endSubProcess">
+                <terminateEventDefinition />
+            </endEvent>
+
+            <!-- Event Subprocess de Cancelación durante la preparación (Sección 1.3) -->
+            <subProcess id="subProcessCancelacion" name="Cancelación" triggeredByEvent="true">
+                <startEvent id="startCancelacion" isInterrupting="false">
+                    <messageEventDefinition messageRef="msgRecibirCancelacion" />
+                </startEvent>
+
+                <sequenceFlow id="flowSubCancel1" sourceRef="startCancelacion" targetRef="throwCompensacionCancelacion" />
+
+                <intermediateThrowEvent id="throwCompensacionCancelacion">
+                    <compensateEventDefinition />
+                </intermediateThrowEvent>
+
+                <sequenceFlow id="flowSubCancel2" sourceRef="throwCompensacionCancelacion" targetRef="endCancelacionConError" />
+
+                <endEvent id="endCancelacionConError">
+                    <errorEventDefinition errorRef="errCancelacion" />
+                </endEvent>
+            </subProcess>
+
+            <association id="assocCompAula" associationDirection="One" sourceRef="compReservarAula" targetRef="liberarAulaTask" />
+            <association id="assocCompVirtual" associationDirection="One" sourceRef="compSolicitarAulaVirtual" targetRef="liberarAulaVirtualTask" />
+            <association id="assocCompEquip" associationDirection="One" sourceRef="compContratarEquipamiento" targetRef="liberarEquipamientoTask" />
+
+        </subProcess>
+
+        <!-- Límite de error por cancelación en el Subproceso -->
+        <boundaryEvent id="catchErrCancelacion" attachedToRef="subProcessPrepararCurso">
+            <errorEventDefinition errorRef="errCancelacion" />
+        </boundaryEvent>
+
+        <sequenceFlow id="flowErrorToNotificarCierre" sourceRef="catchErrCancelacion" targetRef="notificarCierreTask" />
+
+        <serviceTask id="notificarCierreTask" name="Notificar Cierre"
+                     flowable:expression="${cursoProcessService.notificarCierre(execution)}" />
+
+        <sequenceFlow id="flowNotificarCierreToEnd" sourceRef="notificarCierreTask" targetRef="endEventCancelado" />
+
+        <endEvent id="endEventCancelado" name="Curso Cancelado">
+            <extensionElements>
+                <flowable:executionListener event="end" delegateExpression="${actualizarEstadoCursoExecutionListener}" />
+            </extensionElements>
+        </endEvent>
+
+        <!-- ================================================================= -->
+        <!-- 6. Desarrollo y Finalización Normal (Sección 1.4)                 -->
+        <!-- ================================================================= -->
+        <sequenceFlow id="flowSubProcessToConfirmacion" sourceRef="subProcessPrepararCurso" targetRef="enviarConfirmacionTask" />
+
+        <serviceTask id="enviarConfirmacionTask" name="Enviar confirmación"
+                     flowable:expression="${cursoProcessService.enviarConfirmacion(execution)}" />
+
+        <sequenceFlow id="flowConfirmacionToDefinirDocente" sourceRef="enviarConfirmacionTask" targetRef="definirDocenteTask" />
+
+        <!-- Jefe docente define quién dictará el curso (Sección 1.4, 4.1.4) -->
+        <userTask id="definirDocenteTask" name="Definir Docente que desarrolla el curso"
+                  flowable:assignee="docente_carlos" />
+
+        <sequenceFlow id="flowDefinirToTimerFecha" sourceRef="definirDocenteTask" targetRef="timerFechaProgramada" />
+
+        <!-- Temporizador de espera hasta la fecha acordada (${fechaInicioCurso}) -->
+        <intermediateCatchEvent id="timerFechaProgramada" name="Fecha programada">
+            <timerEventDefinition>
+                <timeDate>${fechaInicioCurso}</timeDate>
+            </timerEventDefinition>
+        </intermediateCatchEvent>
+
+        <sequenceFlow id="flowTimerFechaToDesarrollar" sourceRef="timerFechaProgramada" targetRef="desarrollarCursoTask" />
+
+        <!-- Tarea asignada dinámicamente al docente seleccionado -->
+        <userTask id="desarrollarCursoTask" name="Desarrollar curso"
+                  flowable:assignee="${docenteAsignado}" />
+
+        <sequenceFlow id="flowDesarrollarToInforme" sourceRef="desarrollarCursoTask" targetRef="elaborarInformeResultadosTask" />
+
+        <!-- Jefe docente elabora informe de resultados -->
+        <userTask id="elaborarInformeResultadosTask" name="Elaborar informe de resultados"
+                  flowable:assignee="docente_carlos" />
+
+        <sequenceFlow id="flowInformeToEnviarArchivar" sourceRef="elaborarInformeResultadosTask" targetRef="enviarInformeArchivarTask" />
+
+        <!-- Jefe administrativo envía informe a la empresa y archiva expediente -->
+        <userTask id="enviarInformeArchivarTask" name="Enviar informe a empresa y Archivar expediente."
+                  flowable:assignee="admin_laura" />
+
+        <sequenceFlow id="flowArchivarToFinCompensacion" sourceRef="enviarInformeArchivarTask" targetRef="endEventFinalizado" />
+
+        <!-- Fin Normal: Lanza compensación para liberar recursos y finaliza (Sección 1.4) -->
+        <endEvent id="endEventFinalizado" name="Liberar recursos. Curso finalizado">
+            <extensionElements>
+                <flowable:executionListener event="end" delegateExpression="${actualizarEstadoCursoExecutionListener}" />
+            </extensionElements>
+            <compensateEventDefinition />
+        </endEvent>
+
+    </process>
+
+</definitions>
