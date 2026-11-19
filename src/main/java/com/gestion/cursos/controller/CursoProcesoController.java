@@ -93,6 +93,24 @@ public class CursoProcesoController {
         return ResponseEntity.ok(ApiResponse.exito("Estado del curso obtenido correctamente", estado));
     }
 
+    @GetMapping("/empresas/{email}/cursos")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listarCursosPorEmpresa(
+            @PathVariable("email") String email) {
+        List<Map<String, Object>> cursos = cursoProcessService.getCursoExternalService().obtenerCursosPorEmpresa(email);
+        return ResponseEntity.ok(ApiResponse.exito("Cursos asociados a la empresa: " + email, cursos));
+    }
+
+    @GetMapping("/cursos/{identificador}/detalle-bd")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> consultarDetalleBd(
+            @PathVariable("identificador") String identificador) {
+        Map<String, Object> detalle = cursoProcessService.getCursoExternalService().obtenerCurso(identificador);
+        if (detalle == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Curso no encontrado en la base de datos institucional"));
+        }
+        return ResponseEntity.ok(ApiResponse.exito("Detalle recuperado de la base de datos institucional", detalle));
+    }
+
     // =========================================================================
     // 2. SIMULACIÓN DE COMUNICACIONES DE LA EMPRESA (Sección 4.2.2)
     // =========================================================================

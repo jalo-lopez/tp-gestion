@@ -113,7 +113,21 @@ class CursoProcesoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF));
 
-        // 7. Verificar endpoint de métricas
+        // 7. Verificar consulta de cursos por empresa en BD institucional (Sección 3.2 y 4.1.2)
+        mockMvc.perform(get("/api/v1/cursos/procesos/empresas/{email}/cursos", "profesor@universidad.edu"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos", hasSize(greaterThanOrEqualTo(1))))
+                .andExpect(jsonPath("$.datos[0].curso_id").value("CURSO-REST-202"));
+
+        // 8. Verificar detalle persistido en BD institucional
+        mockMvc.perform(get("/api/v1/cursos/procesos/cursos/{identificador}/detalle-bd", "CURSO-REST-202"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos.programa").value("Temario completo"))
+                .andExpect(jsonPath("$.datos.presupuesto").value("$ 900.000"));
+
+        // 9. Verificar endpoint de métricas
         mockMvc.perform(get("/api/v1/cursos/procesos/metricas/resultados"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exito").value(true))

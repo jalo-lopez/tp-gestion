@@ -48,13 +48,20 @@ public class CursoProcessService {
     private final TaskService taskService;
     private final HistoryService historyService;
     private final ManagementService managementService;
+    private final CursoExternalService cursoExternalService;
 
     public CursoProcessService(RuntimeService runtimeService, TaskService taskService,
-                               HistoryService historyService, ManagementService managementService) {
+                               HistoryService historyService, ManagementService managementService,
+                               CursoExternalService cursoExternalService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.historyService = historyService;
         this.managementService = managementService;
+        this.cursoExternalService = cursoExternalService;
+    }
+
+    public CursoExternalService getCursoExternalService() {
+        return cursoExternalService;
     }
 
     /**
@@ -111,6 +118,9 @@ public class CursoProcessService {
         );
 
         log.info("Instancia creada con ID: [{}]", processInstance.getId());
+
+        // Persistir en la base de datos institucional propia (Sección 3.2 y 4.1.1)
+        cursoExternalService.registrarSolicitudCurso(request, processInstance.getId());
 
         return new ProcesoIniciadoResponse(
                 processInstance.getId(),
@@ -207,6 +217,12 @@ public class CursoProcessService {
         // Si se completa 'Registrar y Elaborar propuesta' o 'Revisar propuesta', reiniciar contador de recordatorios
         if ("Registrar y Elaborar propuesta".equals(task.getName()) || "Revisar propuesta".equals(task.getName())) {
             variables.put("recordatoriosEnviados", 0);
+            cursoExternalService.guardarPropuesta(
+                    task.getProcessInstanceId(),
+                    (String) variables.get("programa"),
+                    (String) variables.get("presupuesto"),
+                    (String) variables.get("fechasPosibles")
+            );
         }
 
         // Si se completa 'Definir Docente que desarrolla el curso', asegurar variable de docente
@@ -217,6 +233,21 @@ public class CursoProcessService {
             if (runtimeService.getVariable(task.getExecutionId(), "fechaInicioCurso") == null) {
                 variables.put("fechaInicioCurso", LocalDateTime.now().plusSeconds(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
             }
+            cursoExternalService.actualizarEstadoCurso(task.getProcessInstanceId(), "confirmado y pendiente de inicio", null);
+        }
+
+        // Si se completa 'Desarrollar curso'
+        if ("Desarrollar curso".equals(task.getName())) {
+            cursoExternalService.actualizarEstadoCurso(task.getProcessInstanceId(), "en desarrollo", null);
+        }
+
+        // Si se completa 'Elaborar informe de resultados'
+        if ("Elaborar informe de resultados".equals(task.getName())) {
+            String informe = (String) variables.get("informeResultados");
+            if (informe == null && request.getObservaciones() != null) {
+                informe = request.getObservaciones();
+            }
+            cursoExternalService.guardarInformeResultados(task.getProcessInstanceId(), informe);
         }
 
         // Si se completa 'Evaluar Recursos', asegurar que los 3 booleanos estén definidos
@@ -229,6 +260,7 @@ public class CursoProcessService {
         // Si se completa 'Enviar informe a empresa y Archivar expediente.', fijar resultado normal
         if ("Enviar informe a empresa y Archivar expediente.".equals(task.getName())) {
             variables.put("resultado", "finalizado");
+            cursoExternalService.actualizarEstadoCurso(task.getProcessInstanceId(), "finalizado", "Expediente archivado");
         }
 
         taskService.complete(taskId, variables);
@@ -288,8 +320,10 @@ public class CursoProcessService {
         log.info("Empresa acepta propuesta para instancia [{}] con fecha acordada [{}]", processInstanceId, fechaAcordada);
         Execution exec = buscarEjecucionEsperandoMensaje(processInstanceId, "msgAceptacion");
         Map<String, Object> vars = new HashMap<>();
-        vars.put("fechaInicioCurso", fechaAcordada != null ? fechaAcordada : LocalDateTime.now().plusDays(10).toString());
+        String fecha = fechaAcordada != null ? fechaAcordada : LocalDateTime.now().plusDays(10).toString();
+        vars.put("fechaInicioCurso", fecha);
         vars.put("decisionEmpresa", "ACEPTADA");
+        cursoExternalService.registrarAceptacion(processInstanceId, fecha);
         runtimeService.messageEventReceived("msgAceptacion", exec.getId(), vars);
     }
 
@@ -301,6 +335,7 @@ public class CursoProcessService {
         vars.put("motivoRechazo", motivo != null ? motivo : "Rechazado por decisión comercial");
         vars.put("resultado", "rechazado");
         vars.put("decisionEmpresa", "RECHAZADA");
+        cursoExternalService.actualizarEstadoCurso(processInstanceId, "rechazado", motivo);
         runtimeService.messageEventReceived("msgRechazo", exec.getId(), vars);
     }
 
@@ -332,6 +367,7 @@ public class CursoProcessService {
         Map<String, Object> vars = new HashMap<>();
         vars.put("motivoCancelacion", motivo != null ? motivo : "Cancelación solicitada por la empresa.");
         vars.put("resultado", "cancelado");
+        cursoExternalService.actualizarEstadoCurso(processInstanceId, "cancelado", motivo);
         runtimeService.messageEventReceived("msgRecibirCancelacion", exec.getId(), vars);
     }
 
@@ -376,6 +412,7 @@ public class CursoProcessService {
         String email = (String) execution.getVariable("emailSolicitante");
         log.info(">>> ServiceTask: Habilitar acceso de la empresa ({}) para curso [{}] <<<", email, execution.getProcessInstanceBusinessKey());
         execution.setVariable("accesoEmpresaHabilitado", true);
+        cursoExternalService.habilitarAccesoEmpresa(email, execution.getProcessInstanceId());
     }
 
     public void reservarAula(DelegateExecution execution) {

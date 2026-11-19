@@ -29,6 +29,9 @@ public class IniciarCursoRequest {
     private Integer cupoMaximo;
 
     private String descripcion;
+    private String nombreEmpresa;
+    private String contacto;
+    private String fechasPreferidas;
     private Map<String, Object> variablesAdicionales = new HashMap<>();
 
     public IniciarCursoRequest() {
@@ -55,6 +58,9 @@ public class IniciarCursoRequest {
         variables.put("emailSolicitante", this.emailSolicitante);
         variables.put("cupoMaximo", this.cupoMaximo);
         variables.put("descripcion", this.descripcion);
+        variables.put("nombreEmpresa", this.nombreEmpresa != null ? this.nombreEmpresa : "Empresa Solicitante");
+        variables.put("contacto", this.contacto != null ? this.contacto : "Contacto Referente");
+        variables.put("fechasPreferidas", this.fechasPreferidas != null ? this.fechasPreferidas : "A coordinar");
         variables.put("estado", "INICIADO");
         if (this.variablesAdicionales != null) {
             variables.putAll(this.variablesAdicionales);
@@ -108,6 +114,30 @@ public class IniciarCursoRequest {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public String getNombreEmpresa() {
+        return nombreEmpresa;
+    }
+
+    public void setNombreEmpresa(String nombreEmpresa) {
+        this.nombreEmpresa = nombreEmpresa;
+    }
+
+    public String getContacto() {
+        return contacto;
+    }
+
+    public void setContacto(String contacto) {
+        this.contacto = contacto;
+    }
+
+    public String getFechasPreferidas() {
+        return fechasPreferidas;
+    }
+
+    public void setFechasPreferidas(String fechasPreferidas) {
+        this.fechasPreferidas = fechasPreferidas;
     }
 
     public Map<String, Object> getVariablesAdicionales() {
