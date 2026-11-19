@@ -36,6 +36,26 @@ function showToast(mensaje, tipo = 'success') {
  * Cliente HTTP estandarizado
  */
 const api = {
+  // Autenticación con Flowable (Sección 3.3 y 4.1.2)
+  login: async (username, password) => {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.mensaje || 'Credenciales inválidas en Flowable');
+    return json.datos;
+  },
+
+  // Obtener cursos asociados a la empresa autenticada
+  obtenerCursosPorEmpresa: async (email) => {
+    const res = await fetch(`${API_BASE_URL}/empresas/${encodeURIComponent(email)}/cursos`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.mensaje || 'Error al obtener los cursos de la empresa');
+    return json.datos || [];
+  },
+
   // Iniciar proceso desde formulario web
   iniciarProceso: async (payload) => {
     const res = await fetch(`${API_BASE_URL}/iniciar`, {
@@ -53,6 +73,14 @@ const api = {
     const res = await fetch(`${API_BASE_URL}/cursos/${encodeURIComponent(identificador)}/estado`);
     const json = await res.json();
     if (!res.ok) throw new Error(json.mensaje || 'No se encontró el curso solicitado');
+    return json.datos;
+  },
+
+  // Obtener detalle en tiempo real de las 3 ramas paralelas
+  obtenerDetalleRamas: async (identificador) => {
+    const res = await fetch(`${API_BASE_URL}/cursos/${encodeURIComponent(identificador)}/detalle-ramas`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.mensaje || 'Error al obtener el detalle de las ramas');
     return json.datos;
   },
 

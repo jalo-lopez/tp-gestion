@@ -6,6 +6,7 @@ import com.gestion.cursos.dto.response.EstadoCursoResponse;
 import com.gestion.cursos.dto.response.ProcesoIniciadoResponse;
 import com.gestion.cursos.dto.response.TareaResponse;
 import org.flowable.engine.HistoryService;
+import org.flowable.engine.IdentityService;
 import org.flowable.engine.ManagementService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
@@ -49,19 +50,26 @@ public class CursoProcessService {
     private final HistoryService historyService;
     private final ManagementService managementService;
     private final CursoExternalService cursoExternalService;
+    private final IdentityService identityService;
 
     public CursoProcessService(RuntimeService runtimeService, TaskService taskService,
                                HistoryService historyService, ManagementService managementService,
-                               CursoExternalService cursoExternalService) {
+                               CursoExternalService cursoExternalService,
+                               IdentityService identityService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.historyService = historyService;
         this.managementService = managementService;
         this.cursoExternalService = cursoExternalService;
+        this.identityService = identityService;
     }
 
     public CursoExternalService getCursoExternalService() {
         return cursoExternalService;
+    }
+
+    public IdentityService getIdentityService() {
+        return identityService;
     }
 
     /**
@@ -293,13 +301,13 @@ public class CursoProcessService {
 
         List<String> habilitadas = new ArrayList<>();
         for (Execution ex : executions) {
-            List<org.flowable.eventsubscription.service.impl.persistence.entity.EventSubscriptionEntity> subs =
+            List<EventSubscriptionEntity> subs =
                     runtimeService.createEventSubscriptionQuery()
                             .executionId(ex.getId())
                             .eventType("message")
                             .list()
                             .stream()
-                            .map(s -> (org.flowable.eventsubscription.service.impl.persistence.entity.EventSubscriptionEntity) s)
+                            .map(s -> (EventSubscriptionEntity) s)
                             .toList();
 
             for (EventSubscriptionEntity sub : subs) {
@@ -413,6 +421,29 @@ public class CursoProcessService {
         log.info(">>> ServiceTask: Habilitar acceso de la empresa ({}) para curso [{}] <<<", email, execution.getProcessInstanceBusinessKey());
         execution.setVariable("accesoEmpresaHabilitado", true);
         cursoExternalService.habilitarAccesoEmpresa(email, execution.getProcessInstanceId());
+        asegurarUsuarioFlowableEmpresa(email, (String) execution.getVariable("nombreEmpresa"));
+    }
+
+    public void asegurarUsuarioFlowableEmpresa(String email, String nombreEmpresa) {
+        if (email == null || email.isBlank()) return;
+        try {
+            org.flowable.idm.api.User user = identityService.createUserQuery().userId(email).singleResult();
+            if (user == null) {
+                user = identityService.newUser(email);
+                user.setFirstName(nombreEmpresa != null && !nombreEmpresa.isBlank() ? nombreEmpresa : "Empresa");
+                user.setLastName("");
+                user.setEmail(email);
+                user.setPassword("empresa123");
+                identityService.saveUser(user);
+                log.info("Usuario de Flowable creado para empresa: {}", email);
+            }
+            org.flowable.idm.api.Group group = identityService.createGroupQuery().groupId("Empresas").groupMember(email).singleResult();
+            if (group == null) {
+                identityService.createMembership(email, "Empresas");
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo registrar empresa en Flowable IdentityService: {}", e.getMessage());
+        }
     }
 
     public void reservarAula(DelegateExecution execution) {
@@ -449,40 +480,401 @@ public class CursoProcessService {
     }
 
     public void enviarConfirmacion(DelegateExecution execution) {
-        log.info(">>> ServiceTask: Enviar confirmación de curso a la empresa para [{}] <<<",
+        log.info(">>> ServiceTask: Preparación concluida. Enviar confirmación a la empresa solicitante [{}] <<<",
                 execution.getProcessInstanceBusinessKey());
         execution.setVariable("confirmacionEnviada", true);
     }
 
+    // 4. Login de usuarios con Flowable:
+
+    public Map<String, Object> autenticarUsuario(String username, String password) {
+        if (username == null || password == null) {
+            throw new IllegalArgumentException("Usuario y contraseña requeridos");
+        }
+        String cleanUser = username.trim();
+
+        // 1. Intentar autenticar con Flowable
+        org.flowable.idm.api.User user = identityService.createUserQuery().userId(cleanUser).singleResult();
+        if (user == null) {
+            // Intentar buscar por email en Flowable
+            user = identityService.createUserQuery().userEmail(cleanUser).singleResult();
+        }
+
+        boolean flowableAuth = false;
+        if (user != null) {
+            flowableAuth = identityService.checkPassword(user.getId(), password);
+        }
+
+        // 2. Si no se encontró en Flowable,
+        // verificar en la tabla empresas de la BD
+        Map<String, Object> empresaBd = null;
+        try {
+            String sql = "SELECT * FROM empresas WHERE (LOWER(email) = LOWER(?) OR LOWER(nombre) = LOWER(?)) AND password = ?";
+            List<Map<String, Object>> rows = cursoExternalService.getJdbcTemplate().queryForList(sql, cleanUser, cleanUser, password);
+            if (!rows.isEmpty()) {
+                empresaBd = cursoExternalService.normalizarClavesMinusculas(rows.get(0));
+            }
+        } catch (Exception e) {
+            log.debug("Consulta de autenticación contra empresas: {}", e.getMessage());
+        }
+
+        if (!flowableAuth && empresaBd == null) {
+            throw new SecurityException("Credenciales inválidas en Flowable / Institución");
+        }
+
+        // Si autenticó en BD pero no estaba en Flowable, sincronizarlo con Flowable
+        if (empresaBd != null && user == null) {
+            String email = (String) empresaBd.get("email");
+            String nombre = (String) empresaBd.get("nombre");
+            asegurarUsuarioFlowableEmpresa(email, nombre);
+            user = identityService.createUserQuery().userId(email).singleResult();
+        }
+
+        Map<String, Object> perfil = new LinkedHashMap<>();
+        if (user != null) {
+            perfil.put("userId", user.getId());
+            perfil.put("nombre", (user.getFirstName() != null ? user.getFirstName() : "") +
+                    (user.getLastName() != null && !user.getLastName().isBlank() ? " " + user.getLastName() : ""));
+            perfil.put("email", user.getEmail());
+
+            List<org.flowable.idm.api.Group> groups = identityService.createGroupQuery().groupMember(user.getId()).list();
+            List<String> groupIds = groups.stream().map(org.flowable.idm.api.Group::getId).toList();
+            perfil.put("grupos", groupIds);
+
+            if (groupIds.contains("Empresas") || user.getId().contains("@") || empresaBd != null) {
+                perfil.put("tipo", "EMPRESA");
+            } else if (groupIds.contains("Administración")) {
+                perfil.put("tipo", "ADMINISTRACION");
+            } else if (groupIds.contains("Docentes")) {
+                perfil.put("tipo", "DOCENTES");
+            } else {
+                perfil.put("tipo", "INSTITUCIONAL");
+            }
+        } else if (empresaBd != null) {
+            perfil.put("userId", empresaBd.get("email"));
+            perfil.put("nombre", empresaBd.get("nombre"));
+            perfil.put("email", empresaBd.get("email"));
+            perfil.put("tipo", "EMPRESA");
+            perfil.put("grupos", List.of("Empresas"));
+        }
+
+        if (empresaBd != null) {
+            perfil.put("empresaId", empresaBd.get("id"));
+            perfil.put("empresaNombre", empresaBd.get("nombre"));
+            perfil.put("contacto", empresaBd.get("contacto"));
+        } else if ("EMPRESA".equals(perfil.get("tipo"))) {
+            Map<String, Object> emp = cursoExternalService.obtenerEmpresaPorEmail((String) perfil.get("email"));
+            if (emp != null) {
+                perfil.put("empresaId", emp.get("id"));
+                perfil.put("empresaNombre", emp.get("nombre"));
+                perfil.put("contacto", emp.get("contacto"));
+            }
+        }
+
+        log.info("Usuario [{}] autenticado exitosamente como [{}]", cleanUser, perfil.get("tipo"));
+        return perfil;
+    }
+
     // =========================================================================
-    // 4. CONSULTAS HISTÓRICAS Y MÉTRICAS (Sección 4.3)
+    // 5. DETALLE DE LAS 3 RAMAS PARALELAS (Sección 1.2 y 4.1.2)
+    // =========================================================================
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> obtenerDetalleRamasPreparacion(String identificador) {
+        // Puede venir por cursoId o por processInstanceId
+        ProcessInstance active = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(identificador).singleResult();
+        if (active == null) {
+            active = runtimeService.createProcessInstanceQuery()
+                    .processInstanceId(identificador).singleResult();
+        }
+
+        String processInstanceId = active != null ? active.getId() : null;
+        HistoricProcessInstance historic = null;
+        if (processInstanceId == null) {
+            historic = historyService.createHistoricProcessInstanceQuery()
+                    .processInstanceBusinessKey(identificador).singleResult();
+            if (historic == null) {
+                historic = historyService.createHistoricProcessInstanceQuery()
+                        .processInstanceId(identificador).singleResult();
+            }
+            if (historic != null) {
+                processInstanceId = historic.getId();
+            }
+        }
+
+        if (processInstanceId == null) {
+            throw new IllegalArgumentException("No se encontró ningún curso o proceso con el identificador: " + identificador);
+        }
+
+        // Obtener variables de runtime o de histórico
+        Map<String, Object> vars = new HashMap<>();
+        if (active != null) {
+            vars.putAll(runtimeService.getVariables(processInstanceId));
+        } else {
+            historyService.createHistoricVariableInstanceQuery()
+                    .processInstanceId(processInstanceId)
+                    .list()
+                    .forEach(v -> vars.put(v.getVariableName(), v.getValue()));
+        }
+
+        // Tareas activas
+        List<Task> tareasActivas = taskService.createTaskQuery()
+                .processInstanceId(processInstanceId)
+                .active()
+                .list();
+
+        // Subscripciones de eventos activas (mensajes)
+        List<String> mensajesEsperados = active != null ? runtimeService.createEventSubscriptionQuery()
+                .processInstanceId(processInstanceId)
+                .eventType("message")
+                .list()
+                .stream()
+                .map(sub -> (EventSubscriptionEntity) sub)
+                .map(EventSubscriptionEntity::getEventName)
+                .toList() : Collections.emptyList();
+
+        // Actividades históricas finalizadas
+        Set<String> actividadesFinalizadas = historyService.createHistoricActivityInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .finished()
+                .list()
+                .stream()
+                .map(HistoricActivityInstance::getActivityId)
+                .collect(Collectors.toSet());
+
+        // Comprobar estado del subproceso "subProcessPrepararCurso"
+        boolean subprocesoIniciado = actividadesFinalizadas.contains("startSubProcess")
+                || actividadesFinalizadas.contains("forkPreparacion")
+                || tareasActivas.stream().anyMatch(t -> List.of("Preparar materiales", "Evaluar Recursos", "Confeccionar lista definitiva", "Solicitar Aula Virtual", "Contratar equipamiento").contains(t.getName()))
+                || mensajesEsperados.contains("msgRecibirNomina");
+
+        boolean subprocesoFinalizado = actividadesFinalizadas.contains("subProcessPrepararCurso")
+                || actividadesFinalizadas.contains("joinPreparacion")
+                || actividadesFinalizadas.contains("endSubProcess")
+                || actividadesFinalizadas.contains("enviarConfirmacionTask")
+                || actividadesFinalizadas.contains("definirDocenteTask")
+                || actividadesFinalizadas.contains("desarrollarCursoTask");
+
+        String resultado = (String) vars.get("resultado");
+        boolean cancelado = "cancelado".equalsIgnoreCase(resultado) || actividadesFinalizadas.contains("throwCompensacionCancelacion");
+
+        // -------------------------------------------------------------
+        // RAMA 1: INSCRIPCIONES
+        // -------------------------------------------------------------
+        Map<String, Object> ramaInscripciones = new LinkedHashMap<>();
+        ramaInscripciones.put("nombre", "Inscripciones y Nómina");
+        boolean listaDefinitivaLista = actividadesFinalizadas.contains("confeccionarListaDefinitivaTask");
+        Task taskLista = tareasActivas.stream().filter(t -> "confeccionarListaDefinitivaTask".equals(t.getTaskDefinitionKey()) || "Confeccionar lista definitiva".equals(t.getName())).findFirst().orElse(null);
+        boolean esperandoNomina = mensajesEsperados.contains("msgRecibirNomina");
+        boolean nominaEnviada = Boolean.TRUE.equals(vars.get("nominaEnviada")) || (!esperandoNomina && (taskLista != null || listaDefinitivaLista));
+
+        ramaInscripciones.put("nominaRecibida", nominaEnviada);
+        Object nominaObj = vars.get("nominaParticipantes");
+        if (nominaObj instanceof List<?> list) {
+            ramaInscripciones.put("totalParticipantes", list.size());
+            ramaInscripciones.put("participantes", list);
+        } else {
+            ramaInscripciones.put("totalParticipantes", vars.getOrDefault("cupoMaximo", 20));
+        }
+
+        if (listaDefinitivaLista || subprocesoFinalizado) {
+            ramaInscripciones.put("estado", "COMPLETADA");
+            ramaInscripciones.put("actividadActual", "Lista definitiva confeccionada");
+            ramaInscripciones.put("detalle", "Nómina de participantes procesada y lista definitiva confeccionada.");
+        } else if (taskLista != null) {
+            ramaInscripciones.put("estado", "EN_EJECUCION");
+            ramaInscripciones.put("actividadActual", "Confeccionar lista definitiva");
+            ramaInscripciones.put("asignado", taskLista.getAssignee() != null ? taskLista.getAssignee() : "Administración (Asignado por balanceo)");
+            ramaInscripciones.put("detalle", "Nómina recibida. Tarea asignada a: " + (taskLista.getAssignee() != null ? taskLista.getAssignee() : "Administración"));
+        } else if (esperandoNomina) {
+            ramaInscripciones.put("estado", "PENDIENTE");
+            ramaInscripciones.put("actividadActual", "Esperando nómina de participantes");
+            ramaInscripciones.put("detalle", "Pendiente de que la empresa envíe la nómina de empleados a capacitar.");
+        } else if (subprocesoIniciado) {
+            ramaInscripciones.put("estado", "EN_EJECUCION");
+            ramaInscripciones.put("actividadActual", "En proceso de inscripción");
+            ramaInscripciones.put("detalle", "Recepción de nómina y confección en curso.");
+        } else {
+            ramaInscripciones.put("estado", "NO_INICIADA");
+            ramaInscripciones.put("actividadActual", "No iniciada");
+            ramaInscripciones.put("detalle", "Esta rama se activará cuando la propuesta sea acordada.");
+        }
+
+        // -------------------------------------------------------------
+        // RAMA 2: MATERIALES
+        // -------------------------------------------------------------
+        Map<String, Object> ramaMateriales = new LinkedHashMap<>();
+        ramaMateriales.put("nombre", "Materiales Didácticos");
+        boolean materialesListos = actividadesFinalizadas.contains("prepararMaterialesTask") || Boolean.TRUE.equals(vars.get("materialesPreparados"));
+        Task taskMateriales = tareasActivas.stream().filter(t -> "prepararMaterialesTask".equals(t.getTaskDefinitionKey()) || "Preparar materiales".equals(t.getName())).findFirst().orElse(null);
+
+        if (materialesListos || subprocesoFinalizado) {
+            ramaMateriales.put("estado", "COMPLETADA");
+            ramaMateriales.put("actividadActual", "Materiales didácticos preparados");
+            ramaMateriales.put("responsable", vars.getOrDefault("responsableMateriales", "Equipo de Administración"));
+            ramaMateriales.put("observaciones", vars.getOrDefault("observacionesMateriales", "Diapositivas y material impreso listos"));
+            ramaMateriales.put("detalle", "Los materiales didácticos han sido elaborados y preparados satisfactoriamente.");
+        } else if (taskMateriales != null) {
+            ramaMateriales.put("estado", "EN_EJECUCION");
+            ramaMateriales.put("actividadActual", "Preparar materiales");
+            ramaMateriales.put("grupoCandidato", "Administración");
+            ramaMateriales.put("asignado", taskMateriales.getAssignee() != null ? taskMateriales.getAssignee() : "Pendiente de reclamo por Administración");
+            ramaMateriales.put("detalle", "Tarea abierta para el grupo Administración (App Auxiliar Java o Portal Web).");
+        } else if (subprocesoIniciado) {
+            ramaMateriales.put("estado", "PENDIENTE");
+            ramaMateriales.put("actividadActual", "Pendiente de preparación");
+            ramaMateriales.put("detalle", "En cola de preparación de materiales.");
+        } else {
+            ramaMateriales.put("estado", "NO_INICIADA");
+            ramaMateriales.put("actividadActual", "No iniciada");
+            ramaMateriales.put("detalle", "Esta rama se activará cuando la propuesta sea acordada.");
+        }
+
+        // -------------------------------------------------------------
+        // RAMA 3: RECURSOS
+        // -------------------------------------------------------------
+        Map<String, Object> ramaRecursos = new LinkedHashMap<>();
+        ramaRecursos.put("nombre", "Recursos y Espacios");
+        boolean evaluacionCompletada = actividadesFinalizadas.contains("evaluarRecursosTask");
+        Task taskEvaluar = tareasActivas.stream().filter(t -> "evaluarRecursosTask".equals(t.getTaskDefinitionKey()) || "Evaluar Recursos".equals(t.getName())).findFirst().orElse(null);
+
+        boolean reqFisica = Boolean.TRUE.equals(vars.get("requiereAulaFisica"));
+        boolean reqVirtual = Boolean.TRUE.equals(vars.get("requiereAulaVirtual"));
+        boolean reqEquip = Boolean.TRUE.equals(vars.get("requiereEquipamiento"));
+
+        Map<String, Object> subRecursos = new LinkedHashMap<>();
+
+        // Aula Física
+        Map<String, Object> subFisica = new LinkedHashMap<>();
+        subFisica.put("requerida", reqFisica);
+        if (!reqFisica) {
+            subFisica.put("estado", "NO_REQUERIDA");
+            subFisica.put("detalle", "Modalidad 100% online o sin espacio presencial");
+        } else if (Boolean.TRUE.equals(vars.get("aulaFisicaReservada")) || actividadesFinalizadas.contains("reservarAulaTask") || subprocesoFinalizado) {
+            subFisica.put("estado", "RESERVADA");
+            subFisica.put("detalle", "Aula física confirmada: " + vars.getOrDefault("idAulaFisica", "AULA-MAGNA-BPM"));
+        } else {
+            subFisica.put("estado", "EN_GESTION");
+            subFisica.put("detalle", "Conectando con Web Service para reserva de aula");
+        }
+        subRecursos.put("aulaFisica", subFisica);
+
+        // Aula Virtual
+        Map<String, Object> subVirtual = new LinkedHashMap<>();
+        subVirtual.put("requerida", reqVirtual);
+        boolean taskVirtualActive = tareasActivas.stream().anyMatch(t -> "solicitarAulaVirtualTask".equals(t.getTaskDefinitionKey()) || "Solicitar Aula Virtual".equals(t.getName()));
+        boolean virtualLista = actividadesFinalizadas.contains("solicitarAulaVirtualTask") || Boolean.TRUE.equals(vars.get("aulaVirtualReservada"));
+        if (!reqVirtual) {
+            subVirtual.put("estado", "NO_REQUERIDA");
+            subVirtual.put("detalle", "No requiere aula virtual");
+        } else if (virtualLista || subprocesoFinalizado) {
+            subVirtual.put("estado", "HABILITADA");
+            subVirtual.put("detalle", "Aula virtual habilitada en plataforma de aprendizaje");
+        } else if (taskVirtualActive) {
+            subVirtual.put("estado", "EN_GESTION");
+            subVirtual.put("detalle", "Tarea 'Solicitar Aula Virtual' pendiente en Administración");
+        } else {
+            subVirtual.put("estado", "PENDIENTE");
+            subVirtual.put("detalle", "Pendiente de habilitación");
+        }
+        subRecursos.put("aulaVirtual", subVirtual);
+
+        // Equipamiento
+        Map<String, Object> subEquip = new LinkedHashMap<>();
+        subEquip.put("requerido", reqEquip);
+        boolean taskEquipActive = tareasActivas.stream().anyMatch(t -> "contratarEquipamientoTask".equals(t.getTaskDefinitionKey()) || "Contratar equipamiento".equals(t.getName()));
+        boolean equipListo = actividadesFinalizadas.contains("contratarEquipamientoTask") || Boolean.TRUE.equals(vars.get("equipamientoContratado"));
+        if (!reqEquip) {
+            subEquip.put("estado", "NO_REQUERIDO");
+            subEquip.put("detalle", "No requiere equipamiento especial");
+        } else if (equipListo || subprocesoFinalizado) {
+            subEquip.put("estado", "CONTRATADO");
+            subEquip.put("detalle", "Equipamiento especial contratado y asignado");
+        } else if (taskEquipActive) {
+            subEquip.put("estado", "EN_GESTION");
+            subEquip.put("detalle", "Tarea 'Contratar equipamiento' pendiente en Administración");
+        } else {
+            subEquip.put("estado", "PENDIENTE");
+            subEquip.put("detalle", "Pendiente de contratación");
+        }
+        subRecursos.put("equipamiento", subEquip);
+
+        ramaRecursos.put("recursos", subRecursos);
+
+        if (subprocesoFinalizado || (evaluacionCompletada && (!reqFisica || "RESERVADA".equals(subFisica.get("estado")))
+                && (!reqVirtual || "HABILITADA".equals(subVirtual.get("estado")))
+                && (!reqEquip || "CONTRATADO".equals(subEquip.get("estado"))))) {
+            ramaRecursos.put("estado", "COMPLETADA");
+            ramaRecursos.put("actividadActual", "Recursos asignados y confirmados");
+            ramaRecursos.put("detalle", "Todos los recursos seleccionados han sido gestionados exitosamente.");
+        } else if (taskEvaluar != null) {
+            ramaRecursos.put("estado", "EN_EVALUACION");
+            ramaRecursos.put("actividadActual", "Evaluar Recursos");
+            ramaRecursos.put("grupoCandidato", "Administración");
+            ramaRecursos.put("detalle", "El equipo de administración debe evaluar las necesidades (aula física, virtual o equipamiento).");
+        } else if (evaluacionCompletada) {
+            ramaRecursos.put("estado", "EN_GESTION");
+            ramaRecursos.put("actividadActual", "Gestión de recursos seleccionados");
+            ramaRecursos.put("detalle", "Completando las solicitudes de los recursos seleccionados.");
+        } else if (subprocesoIniciado) {
+            ramaRecursos.put("estado", "PENDIENTE");
+            ramaRecursos.put("actividadActual", "Pendiente de evaluación");
+            ramaRecursos.put("detalle", "Pendiente de inicio de evaluación de recursos.");
+        } else {
+            ramaRecursos.put("estado", "NO_INICIADA");
+            ramaRecursos.put("actividadActual", "No iniciada");
+            ramaRecursos.put("detalle", "Esta rama se activará cuando la propuesta sea acordada.");
+        }
+
+        // Resumen
+        Map<String, Object> resumen = new LinkedHashMap<>();
+        resumen.put("processInstanceId", processInstanceId);
+        resumen.put("cursoId", vars.getOrDefault("cursoId", identificador));
+        resumen.put("nombreCurso", vars.getOrDefault("nombreCurso", "Capacitación Empresarial"));
+        resumen.put("subprocesoIniciado", subprocesoIniciado);
+        resumen.put("subprocesoFinalizado", subprocesoFinalizado);
+        resumen.put("cancelado", cancelado);
+        resumen.put("ramaInscripciones", ramaInscripciones);
+        resumen.put("ramaMateriales", ramaMateriales);
+        resumen.put("ramaRecursos", ramaRecursos);
+
+        return resumen;
+    }
+
+    // =========================================================================
+    // 6. MÉTRICAS HISTÓRICAS (Sección 4.3)
     // =========================================================================
 
     /**
-     * Métrica 1: Tabla de cantidad y porcentaje de instancias finalizadas por resultado
-     * (finalizado, cancelado, rechazado, no viable, cerrado por falta de respuesta).
+     * Métrica 1: Cantidad y porcentaje de instancias finalizadas por cada resultado posible
+     * (finalizado normalmente, cancelado, rechazado, cerrado por falta de respuesta, no viable).
      */
     @Transactional(readOnly = true)
     public Map<String, Object> obtenerMetricasResultados() {
-        List<HistoricProcessInstance> terminadas = historyService.createHistoricProcessInstanceQuery()
+        List<HistoricProcessInstance> instancias = historyService.createHistoricProcessInstanceQuery()
                 .processDefinitionKey(PROCESS_KEY)
                 .finished()
                 .includeProcessVariables()
                 .list();
 
-        long total = terminadas.size();
+        long total = instancias.size();
         Map<String, Long> conteo = new LinkedHashMap<>();
         conteo.put("finalizado", 0L);
         conteo.put("cancelado", 0L);
         conteo.put("rechazado", 0L);
-        conteo.put("no viable", 0L);
         conteo.put("cerrado por falta de respuesta", 0L);
+        conteo.put("no viable", 0L);
 
-        for (HistoricProcessInstance pi : terminadas) {
-            String res = (String) pi.getProcessVariables().get("resultado");
-            if (res == null) res = "finalizado";
-            res = res.toLowerCase().trim();
-            conteo.put(res, conteo.getOrDefault(res, 0L) + 1);
+        for (HistoricProcessInstance pi : instancias) {
+            Map<String, Object> vars = pi.getProcessVariables();
+            String res = (String) vars.get("resultado");
+            if (res != null) {
+                String key = res.toLowerCase().trim();
+                conteo.put(key, conteo.getOrDefault(key, 0L) + 1);
+            } else {
+                conteo.put("finalizado", conteo.get("finalizado") + 1);
+            }
         }
 
         List<Map<String, Object>> filas = new ArrayList<>();
@@ -496,7 +888,7 @@ public class CursoProcessService {
         }
 
         Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("totalInstancias", total);
+        respuesta.put("totalInstanciasFinalizadas", total);
         respuesta.put("distribucion", filas);
         return respuesta;
     }
@@ -600,11 +992,15 @@ public class CursoProcessService {
     }
 
     // =========================================================================
-    // 5. ESTADO EN TIEMPO REAL
+    // 7. ESTADO EN TIEMPO REAL (Sección 4.1.2)
     // =========================================================================
 
     @Transactional(readOnly = true)
     public EstadoCursoResponse consultarEstadoCurso(String identificador) {
+        // Consultar estado en BD institucional si existe
+        Map<String, Object> bdCurso = cursoExternalService.obtenerCurso(identificador);
+        String estadoBd = bdCurso != null ? (String) bdCurso.get("estado") : null;
+
         // 1. Instancia activa
         ProcessInstance active = runtimeService.createProcessInstanceQuery()
                 .processInstanceBusinessKey(identificador)
@@ -624,17 +1020,29 @@ public class CursoProcessService {
 
             String tareaActual = activeTasks.isEmpty() ? "En espera de evento o servicio" :
                     activeTasks.stream().map(Task::getName).collect(Collectors.joining(", "));
-            String nombreCurso = vars.getOrDefault("nombreCurso", "Capacitación Empresarial").toString();
+            String nombreCurso = vars.getOrDefault("nombreCurso",
+                    (bdCurso != null && bdCurso.get("nombre") != null) ? bdCurso.get("nombre") : "Capacitación Empresarial").toString();
+
+            // Determinar estado de acuerdo a BD o al proceso actual
+            String estadoCalculado = estadoBd != null ? estadoBd : "en_preparacion";
+
+            Map<String, Object> detalleRamas = null;
+            try {
+                detalleRamas = obtenerDetalleRamasPreparacion(active.getId());
+            } catch (Exception e) {
+                log.debug("No se pudo calcular ramas para [{}]: {}", active.getId(), e.getMessage());
+            }
 
             return new EstadoCursoResponse(
                     active.getBusinessKey(),
                     active.getId(),
                     nombreCurso,
-                    "en_preparacion",
+                    estadoCalculado,
                     tareaActual,
                     active.getStartTime(),
                     null,
-                    vars
+                    vars,
+                    detalleRamas
             );
         }
 
@@ -655,8 +1063,16 @@ public class CursoProcessService {
                     .list()
                     .forEach(v -> historicVars.put(v.getVariableName(), v.getValue()));
 
-            String res = (String) historicVars.getOrDefault("resultado", "finalizado");
-            String nombreCurso = historicVars.getOrDefault("nombreCurso", "Capacitación Empresarial").toString();
+            String res = (String) historicVars.getOrDefault("resultado", (estadoBd != null ? estadoBd : "finalizado"));
+            String nombreCurso = historicVars.getOrDefault("nombreCurso",
+                    (bdCurso != null && bdCurso.get("nombre") != null) ? bdCurso.get("nombre") : "Capacitación Empresarial").toString();
+
+            Map<String, Object> detalleRamas = null;
+            try {
+                detalleRamas = obtenerDetalleRamasPreparacion(historic.getId());
+            } catch (Exception e) {
+                log.debug("No se pudo calcular ramas para historico [{}]: {}", historic.getId(), e.getMessage());
+            }
 
             return new EstadoCursoResponse(
                     historic.getBusinessKey(),
@@ -666,7 +1082,24 @@ public class CursoProcessService {
                     "Proceso Concluido: " + res,
                     historic.getStartTime(),
                     historic.getEndTime(),
-                    historicVars
+                    historicVars,
+                    detalleRamas
+            );
+        }
+
+        // Si solo existe en BD
+        if (bdCurso != null) {
+            Map<String, Object> variables = new HashMap<>(bdCurso);
+            return new EstadoCursoResponse(
+                    (String) bdCurso.get("curso_id"),
+                    (String) bdCurso.get("process_instance_id"),
+                    (String) bdCurso.get("nombre"),
+                    (String) bdCurso.get("estado"),
+                    "Registrado en base de datos",
+                    null,
+                    null,
+                    variables,
+                    null
             );
         }
 

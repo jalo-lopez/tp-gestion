@@ -16,6 +16,7 @@ public class EstadoCursoResponse {
     private Date fechaInicio;
     private Date fechaFin;
     private Map<String, Object> variables;
+    private Map<String, Object> detalleRamas;
 
     public EstadoCursoResponse() {
     }
@@ -31,6 +32,14 @@ public class EstadoCursoResponse {
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.variables = variables;
+    }
+
+    public EstadoCursoResponse(String cursoId, String processInstanceId, String nombreCurso,
+                               String estado, String tareaActual, Date fechaInicio,
+                               Date fechaFin, Map<String, Object> variables,
+                               Map<String, Object> detalleRamas) {
+        this(cursoId, processInstanceId, nombreCurso, estado, tareaActual, fechaInicio, fechaFin, variables);
+        this.detalleRamas = detalleRamas;
     }
 
     public String getCursoId() {
@@ -95,5 +104,13 @@ public class EstadoCursoResponse {
 
     public void setVariables(Map<String, Object> variables) {
         this.variables = variables;
+    }
+
+    public Map<String, Object> getDetalleRamas() {
+        return detalleRamas;
+    }
+
+    public void setDetalleRamas(Map<String, Object> detalleRamas) {
+        this.detalleRamas = detalleRamas;
     }
 }

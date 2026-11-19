@@ -5,12 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.*;
 
 /**
@@ -27,6 +23,10 @@ public class CursoExternalService {
 
     public CursoExternalService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public JdbcTemplate getJdbcTemplate() {
+        return jdbcTemplate;
     }
 
     /**
@@ -201,14 +201,27 @@ public class CursoExternalService {
         }
     }
 
-    private Map<String, Object> normalizarClavesMinusculas(Map<String, Object> original) {
+    /**
+     * Consulta una empresa por su email.
+     */
+    public Map<String, Object> obtenerEmpresaPorEmail(String email) {
+        String sql = "SELECT * FROM empresas WHERE LOWER(email) = LOWER(?)";
+        try {
+            Map<String, Object> map = jdbcTemplate.queryForMap(sql, email);
+            return normalizarClavesMinusculas(map);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    public Map<String, Object> normalizarClavesMinusculas(Map<String, Object> original) {
         if (original == null) return null;
         Map<String, Object> normalized = new LinkedHashMap<>();
         original.forEach((k, v) -> normalized.put(k.toLowerCase(), v));
         return normalized;
     }
 
-    private Long obtenerOCrearEmpresa(String nombre, String contacto, String email) {
+    public Long obtenerOCrearEmpresa(String nombre, String contacto, String email) {
         try {
             return jdbcTemplate.queryForObject(
                     "SELECT id FROM empresas WHERE LOWER(email) = LOWER(?)",

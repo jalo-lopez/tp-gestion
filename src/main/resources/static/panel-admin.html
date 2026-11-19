@@ -2,313 +2,184 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel Administrativo | Bandeja de Tareas Flowable</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración: tareas pendientes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible+Next:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header__container">
-      <a href="index.html" class="header__brand">
-        <div class="header__logo-icon">BPM</div>
-        <span class="header__title">Gestión de Procesos & Cursos</span>
-      </a>
-      <nav class="header__nav">
-        <a href="index.html" class="header__link">Solicitar Capacitación</a>
-        <a href="panel-empresa.html" class="header__link">Portal Empresa</a>
-        <a href="panel-admin.html" class="header__link header__link--active">Panel Administrativo</a>
-        <a href="panel-docente.html" class="header__link">Portal Docente (Móvil)</a>
+  <header class="cabecera">
+    <div class="cabecera-in">
+      <a class="marca" href="index.html">Cursos y procesos</a>
+      <nav class="nav" aria-label="Principal">
+        <a href="index.html">Solicitar capacitación</a>
+        <a href="panel-empresa.html">Seguimiento</a>
+        <a href="panel-admin.html" aria-current="page">Administración</a>
+        <a href="panel-docente.html">Docentes</a>
       </nav>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL CON CSS GRID -->
-  <main class="main-content">
-    <div class="dashboard-grid">
-      
-      <!-- ENCABEZADO DEL DASHBOARD -->
-      <div class="dashboard-grid__header">
-        <div>
-          <h1 class="card__title" style="font-size: 1.6rem;">Bandeja de Tareas Administrativas</h1>
-          <p class="card__subtitle">Tareas asignadas por el motor Flowable mediante balanceo dinámico de carga.</p>
-        </div>
-
-        <!-- SELECTOR DE USUARIO ADMINISTRATIVO -->
-        <div style="display: flex; align-items: center; gap: 0.75rem; background: #fff; padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-          <label for="select-usuario" class="form-label" style="margin: 0; white-space: nowrap;">Administrativo:</label>
-          <select id="select-usuario" class="form-select" style="padding: 0.35rem 0.75rem; font-weight: 600;">
-            <option value="admin_laura" selected>Laura Gómez (admin_laura - Jefe Admin)</option>
-            <option value="admin_martin">Martín Pérez (admin_martin - Administrativo)</option>
-            <option value="docente_carlos">Carlos Rodríguez (docente_carlos - Jefe Docente)</option>
-          </select>
-          <button id="btn-refrescar" class="btn btn--secondary btn--sm" title="Actualizar lista">↻</button>
-        </div>
+  <main class="pagina">
+    <div class="encabezado">
+      <div>
+        <h1>Tareas pendientes</h1>
+        <p>Las tareas se reparten entre operadores según la carga de cada uno.</p>
       </div>
-
-      <!-- MÉTRICAS DE CONTROL (CSS GRID) -->
-      <div class="dashboard-grid__stats">
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--blue">📋</div>
-          <div>
-            <div id="stat-pendientes" class="stat-card__value">0</div>
-            <div class="stat-card__label">Tareas Pendientes</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--amber">⚖️</div>
-          <div>
-            <div class="stat-card__value" style="font-size: 1.15rem;">Balanceo Activo</div>
-            <div class="stat-card__label">Least Loaded Algorithm</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__icon stat-card__icon--green">⚡</div>
-          <div>
-            <div class="stat-card__value" style="font-size: 1.15rem;">Flowable 7.1</div>
-            <div class="stat-card__label">Process Engine Online</div>
-          </div>
-        </div>
+      <div class="operador">
+        <label for="operador">Operador</label>
+        <select id="operador">
+          <option value="admin_laura" selected>Laura Gómez (jefa administrativa)</option>
+          <option value="admin_martin">Martín Pérez (administrativo)</option>
+          <option value="docente_carlos">Carlos Rodríguez (jefe docente)</option>
+        </select>
+        <button type="button" id="btn-actualizar" class="boton boton-sec chico">Actualizar</button>
       </div>
-
-      <!-- SECCIÓN PRINCIPAL: LISTADO DE TAREAS -->
-      <div class="dashboard-grid__main">
-        <section class="card">
-          <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 class="card__title" style="font-size: 1.2rem;">Tareas Activas en Espera</h2>
-            <span id="badge-usuario-activo" class="badge badge--progress">admin_laura</span>
-          </header>
-
-          <div class="card__body">
-            <!-- Spinner / Loader -->
-            <div id="loader" style="text-align: center; padding: 2rem; color: var(--color-text-muted);">
-              Cargando tareas asignadas desde Flowable BPM...
-            </div>
-
-            <!-- Estado Vacío -->
-            <div id="empty-state" style="display: none; text-align: center; padding: 3rem 1rem;">
-              <span style="font-size: 3rem; display: block; margin-bottom: 0.5rem;">🎉</span>
-              <h3 style="font-size: 1.15rem; color: var(--color-primary-dark);">¡Sin tareas pendientes!</h3>
-              <p style="color: var(--color-text-muted); max-width: 400px; margin: 0.5rem auto 1rem;">Este administrativo no posee tareas pendientes en su bandeja actual.</p>
-              <a href="index.html" class="btn btn--secondary btn--sm">Crear Nueva Solicitud</a>
-            </div>
-
-            <!-- Contenedor Grid de Tareas -->
-            <div id="tasks-container" class="task-list" style="display: none;"></div>
-          </div>
-        </section>
-      </div>
-
     </div>
+
+    <section class="bloque">
+      <h2><span id="pendientes" class="recuento">0</span> pendientes</h2>
+
+      <p id="cargando" class="cargando">Cargando tareas…</p>
+
+      <div id="vacio" class="vacio" hidden>
+        <p>No hay tareas para revisar.</p>
+        <a href="index.html" class="boton boton-sec chico">Cargar una solicitud</a>
+      </div>
+
+      <div id="tabla" class="tabla-scroll" hidden>
+        <table>
+          <thead>
+            <tr><th>Tarea</th><th>Curso</th><th>Código</th><th>Solicitante</th><th>Recibida</th><th></th></tr>
+          </thead>
+          <tbody id="filas"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
-  <!-- MODAL DE COMPLETADO / REVISIÓN DE TAREA -->
-  <div id="modal-completar" class="modal">
-    <div class="modal__backdrop" onclick="cerrarModal()"></div>
-    <div class="modal__dialog">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 id="modal-tarea-titulo" class="card__title" style="font-size: 1.15rem;">Revisión de Solicitud</h3>
-        <button onclick="cerrarModal()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
-      </header>
+  <dialog id="revision" aria-labelledby="rev-titulo">
+    <form id="form-revision">
+      <h2 id="rev-titulo"></h2>
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="rev-curso"></dd></div>
+        <div><dt>Solicitante</dt><dd id="rev-solicitante"></dd></div>
+        <div><dt>Cupo</dt><dd id="rev-cupo"></dd></div>
+      </dl>
+      <div class="campo">
+        <label for="rev-obs">Observaciones para el historial <span class="pista">(opcional)</span></label>
+        <textarea id="rev-obs" placeholder="Justificación académica o administrativa"></textarea>
+      </div>
+      <div class="acciones">
+        <button type="button" id="rev-cancelar" class="boton boton-sec">Cancelar</button>
+        <button type="submit" value="rechazar" class="boton boton-no">Rechazar</button>
+        <button type="submit" value="aprobar" class="boton boton-ok">Aprobar</button>
+      </div>
+    </form>
+  </dialog>
 
-      <form id="form-modal-completar" class="card__body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <input type="hidden" id="modal-task-id">
-
-        <div style="background: #f8fafc; padding: 0.875rem; border-radius: var(--radius-md); font-size: 0.875rem;">
-          <p><strong>Curso:</strong> <span id="modal-info-curso">-</span></p>
-          <p><strong>Solicitante:</strong> <span id="modal-info-solicitante">-</span></p>
-          <p><strong>Cupo Estimado:</strong> <span id="modal-info-cupo">-</span></p>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label form-label--required">Dictamen Administrativo</label>
-          <div style="display: flex; gap: 1.5rem; margin-top: 0.25rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="decision" value="true" checked>
-              <strong style="color: var(--color-success);">Aprobar Curso</strong>
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="decision" value="false">
-              <strong style="color: var(--color-danger);">Rechazar Solicitud</strong>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="modal-observaciones" class="form-label">Informe / Observaciones para el Historial</label>
-          <textarea id="modal-observaciones" class="form-textarea" placeholder="Indique las justificaciones académicas o administrativas..." rows="3"></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarModal()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-completar" class="btn btn--primary">
-            Confirmar Resolución
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>Gestión y Tecnologías de Procesos de Negocio • Motor Flowable BPM & Spring Boot</p>
-  </footer>
-
-  <!-- SCRIPTS -->
   <script src="js/api.js"></script>
   <script>
-    let tareasActuales = [];
+    const $ = (id) => document.getElementById(id);
+    let tareas = [];
+    let tareaActiva = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const selectUsuario = document.getElementById('select-usuario');
-      const btnRefrescar = document.getElementById('btn-refrescar');
-      const badgeUsuarioActivo = document.getElementById('badge-usuario-activo');
-      const formModal = document.getElementById('form-modal-completar');
+    // Crea elementos sin pasar por innerHTML: lo que venga de Flowable se muestra como texto.
+    function h(tag, attrs = {}, ...hijos) {
+      const el = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') el.className = v;
+        else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v);
+      }
+      el.append(...hijos);
+      return el;
+    }
 
-      // Carga inicial
-      cargarTareas();
+    function fila(t) {
+      const v = t.variables || {};
+      return h('tr', {},
+        h('td', {}, t.taskName),
+        h('td', {}, v.nombreCurso || 'Sin título'),
+        h('td', { class: 'codigo' }, v.cursoId || '—'),
+        h('td', {}, v.emailSolicitante || '—'),
+        h('td', {}, t.createTime ? new Date(t.createTime).toLocaleDateString('es-AR') : 'Hoy'),
+        h('td', { class: 'acc' },
+          h('button', { type: 'button', class: 'enlace', onclick: () => reclamar(t.taskId) }, 'Reclamar'),
+          h('button', { type: 'button', class: 'boton chico', onclick: () => abrir(t) }, 'Revisar')
+        )
+      );
+    }
 
-      selectUsuario.addEventListener('change', () => {
-        badgeUsuarioActivo.textContent = selectUsuario.value;
-        cargarTareas();
-      });
-
-      btnRefrescar.addEventListener('click', () => {
-        cargarTareas();
-      });
-
-      formModal.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const taskId = document.getElementById('modal-task-id').value;
-        const aprobado = document.querySelector('input[name="decision"]:checked').value === 'true';
-        const observaciones = document.getElementById('modal-observaciones').value.trim();
-        const btnConfirmar = document.getElementById('btn-confirmar-completar');
-
-        try {
-          btnConfirmar.disabled = true;
-          btnConfirmar.textContent = 'Enviando a Flowable...';
-
-          await api.completarTarea(taskId, {
-            aprobado: aprobado,
-            observaciones: observaciones || (aprobado ? 'Aprobado sin observaciones' : 'Rechazado por dictamen administrativo'),
-            variablesAdicionales: {
-              fechaResolucion: new Date().toISOString()
-            }
-          });
-
-          showToast('Tarea completada exitosamente. Proceso actualizado.', 'success');
-          cerrarModal();
-          cargarTareas();
-        } catch (error) {
-          console.error(error);
-          showToast(error.message, 'error');
-        } finally {
-          btnConfirmar.disabled = false;
-          btnConfirmar.textContent = 'Confirmar Resolución';
-        }
-      });
-    });
-
-    async function cargarTareas() {
-      const usuario = document.getElementById('select-usuario').value;
-      const loader = document.getElementById('loader');
-      const emptyState = document.getElementById('empty-state');
-      const container = document.getElementById('tasks-container');
-      const statPendientes = document.getElementById('stat-pendientes');
-
-      loader.style.display = 'block';
-      emptyState.style.display = 'none';
-      container.style.display = 'none';
-      container.innerHTML = '';
-
+    async function cargar() {
+      $('cargando').hidden = false;
+      $('vacio').hidden = true;
+      $('tabla').hidden = true;
       try {
-        tareasActuales = await api.obtenerTareasPendientes(usuario);
-        statPendientes.textContent = tareasActuales.length;
-
-        loader.style.display = 'none';
-
-        if (tareasActuales.length === 0) {
-          emptyState.style.display = 'block';
-        } else {
-          container.style.display = 'grid';
-          tareasActuales.forEach(tarea => {
-            container.appendChild(crearElementoTarea(tarea, usuario));
-          });
-        }
+        tareas = await api.obtenerTareasPendientes($('operador').value);
+        $('pendientes').textContent = tareas.length;
+        $('cargando').hidden = true;
+        if (!tareas.length) { $('vacio').hidden = false; return; }
+        $('filas').replaceChildren(...tareas.map(fila));
+        $('tabla').hidden = false;
       } catch (err) {
-        loader.style.display = 'none';
+        $('cargando').hidden = true;
         console.error(err);
         showToast(err.message, 'error');
       }
     }
 
-    function crearElementoTarea(tarea, usuarioActual) {
-      const card = document.createElement('article');
-      card.className = 'task-item';
-
-      const vars = tarea.variables || {};
-      const cursoNombre = vars.nombreCurso || 'Curso sin título';
-      const cursoId = vars.cursoId || 'ID Desconocido';
-      const solicitante = vars.emailSolicitante || 'No especificado';
-      const fechaCreacion = tarea.createTime ? new Date(tarea.createTime).toLocaleDateString() : 'Hoy';
-
-      card.innerHTML = `
-        <div>
-          <div class="task-item__header">
-            <span class="badge badge--pending">TAREA BPM</span>
-            <small style="color: var(--color-text-muted); font-size: 0.75rem;">${fechaCreacion}</small>
-          </div>
-          <h3 class="task-item__title" style="margin-top: 0.5rem;">${tarea.taskName}</h3>
-          <div class="task-item__details" style="margin-top: 0.5rem;">
-            <p><strong>Curso:</strong> ${cursoNombre}</p>
-            <p><strong>Código:</strong> ${cursoId}</p>
-            <p><strong>Solicitante:</strong> ${solicitante}</p>
-          </div>
-        </div>
-
-        <div class="task-item__actions">
-          <button class="btn btn--secondary btn--sm" onclick="reclamarTarea('${tarea.taskId}', '${usuarioActual}')" title="Asignar explícitamente a este usuario">
-            Reclamar
-          </button>
-          <button class="btn btn--primary btn--sm" onclick="abrirModalCompletar('${tarea.taskId}')">
-            Revisar & Completar →
-          </button>
-        </div>
-      `;
-      return card;
-    }
-
-    async function reclamarTarea(taskId, usuario) {
+    async function reclamar(taskId) {
+      const usuario = $('operador').value;
       try {
         await api.reclamarTarea(taskId, usuario);
-        showToast(`Tarea ${taskId} reclamada por ${usuario}`, 'success');
-        cargarTareas();
+        showToast(`Tarea reclamada por ${usuario}`, 'success');
+        cargar();
       } catch (err) {
         showToast(err.message, 'error');
       }
     }
 
-    function abrirModalCompletar(taskId) {
-      const tarea = tareasActuales.find(t => t.taskId === taskId);
-      if (!tarea) return;
-
-      const vars = tarea.variables || {};
-      document.getElementById('modal-task-id').value = taskId;
-      document.getElementById('modal-tarea-titulo').textContent = `${tarea.taskName} (${tarea.taskId.substring(0, 8)}...)`;
-      document.getElementById('modal-info-curso').textContent = vars.nombreCurso || vars.cursoId || '-';
-      document.getElementById('modal-info-solicitante').textContent = vars.emailSolicitante || '-';
-      document.getElementById('modal-info-cupo').textContent = (vars.cupoMaximo || '-') + ' participantes';
-      document.getElementById('modal-observaciones').value = '';
-
-      document.getElementById('modal-completar').classList.add('modal--open');
+    function abrir(t) {
+      const v = t.variables || {};
+      tareaActiva = t;
+      $('rev-titulo').textContent = t.taskName;
+      $('rev-curso').textContent = v.nombreCurso || v.cursoId || '-';
+      $('rev-solicitante').textContent = v.emailSolicitante || '-';
+      $('rev-cupo').textContent = v.cupoMaximo ? `${v.cupoMaximo} participantes` : '-';
+      $('rev-obs').value = '';
+      $('revision').showModal();
     }
 
-    function cerrarModal() {
-      document.getElementById('modal-completar').classList.remove('modal--open');
-    }
+    $('form-revision').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const aprobado = e.submitter.value === 'aprobar';
+      const botones = e.target.querySelectorAll('button');
+      botones.forEach((b) => { b.disabled = true; });
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado,
+          observaciones: $('rev-obs').value.trim() ||
+            (aprobado ? 'Aprobado sin observaciones' : 'Rechazado por dictamen administrativo'),
+          variablesAdicionales: { fechaResolucion: new Date().toISOString() }
+        });
+        showToast(aprobado ? 'Curso aprobado' : 'Solicitud rechazada', 'success');
+        $('revision').close();
+        cargar();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message, 'error');
+      } finally {
+        botones.forEach((b) => { b.disabled = false; });
+      }
+    });
+
+    $('rev-cancelar').addEventListener('click', () => $('revision').close());
+    $('operador').addEventListener('change', cargar);
+    $('btn-actualizar').addEventListener('click', cargar);
+    cargar();
   </script>
 </body>
 </html>

@@ -2,233 +2,677 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal de Empresa | Consulta de Estado de Capacitación</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portal Empresa: Acceso y Seguimiento de Cursos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible+Next:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header__container">
-      <a href="index.html" class="header__brand">
-        <div class="header__logo-icon">BPM</div>
-        <span class="header__title">Gestión de Procesos & Cursos</span>
-      </a>
-      <nav class="header__nav">
-        <a href="index.html" class="header__link">Solicitar Capacitación</a>
-        <a href="panel-empresa.html" class="header__link header__link--active">Portal Empresa</a>
-        <a href="panel-admin.html" class="header__link">Panel Administrativo</a>
-        <a href="panel-docente.html" class="header__link">Portal Docente (Móvil)</a>
+  <header class="cabecera">
+    <div class="cabecera-in">
+      <a class="marca" href="index.html">Cursos y procesos</a>
+      <nav class="nav" aria-label="Principal">
+        <a href="index.html">Solicitar capacitación</a>
+        <a href="panel-empresa.html" aria-current="page">Seguimiento Empresa</a>
+        <a href="panel-admin.html">Administración</a>
+        <a href="panel-docente.html">Docentes</a>
       </nav>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="main-content">
-    
-    <!-- TARJETA DE BÚSQUEDA -->
-    <section class="card">
-      <header class="card__header">
-        <h1 class="card__title">Seguimiento de Estado de Capacitación</h1>
-        <p class="card__subtitle">Ingrese el código de curso o ID de proceso Flowable asignado a su solicitud.</p>
-      </header>
+  <main class="pagina">
 
-      <div class="card__body">
-        <form id="form-consulta" class="form" style="display: flex; gap: 1rem; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 280px;">
-            <input type="text" id="input-id" class="form-input" placeholder="Ej: CURSO-BPM-101 o ID de instancia" required>
+    <!-- SECCIÓN 0: BARRA DE USUARIO AUTENTICADO -->
+    <div id="barra-sesion" class="barra-usuario" hidden>
+      <div class="usuario-info">
+        <div class="usuario-avatar" id="sesion-avatar">E</div>
+        <div class="usuario-texto">
+          <strong id="sesion-nombre">Empresa Autenticada</strong>
+          <small><span id="sesion-email">email@empresa.com</span> &bull; <span class="codigo">Flowable IDM</span></small>
+        </div>
+      </div>
+      <div>
+        <button type="button" id="btn-cerrar-sesion" class="boton boton-sec chico">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 1: FORMULARIO DE LOGIN CON FLOWABLE (Visible si NO hay sesión) -->
+    <section id="seccion-login" class="bloque">
+      <div class="login-card">
+        <h2>Acceso para Empresas</h2>
+        <p>Inicie sesión con su cuenta corporativa creada en Flowable para consultar sus cursos y el avance en tiempo real.</p>
+
+        <form id="form-login">
+          <div class="campo">
+            <label for="login-usuario">Usuario / Correo Electrónico</label>
+            <input type="text" id="login-usuario" placeholder="contacto@techsolutions.com" required autocomplete="username">
           </div>
-          <button type="submit" id="btn-consultar" class="btn btn--primary">
-            <span>Consultar Estado</span>
+
+          <div class="campo">
+            <label for="login-password">Contraseña</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+
+          <div class="campo">
+            <span class="pista">Cuentas de demostración iniciales (clic para autocompletar):</span>
+            <div class="chips-credenciales">
+              <button type="button" class="chip-btn" onclick="llenarLogin('contacto@techsolutions.com', 'empresa123')">
+                Tech Solutions (contacto@techsolutions.com)
+              </button>
+              <button type="button" class="chip-btn" onclick="llenarLogin('mlopez@innovalog.com', 'empresa123')">
+                Innovalog (mlopez@innovalog.com)
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-login" class="boton" style="margin-top: 0.5rem; width: 100%;">
+            Iniciar sesión con Flowable
           </button>
         </form>
+
+        <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px dashed var(--regla);">
+          <p style="margin-bottom: 0.5rem; font-size: 0.88rem;"><strong>¿No recuerda su contraseña?</strong> Puede consultar directamente por código de curso o ID de proceso:</p>
+          <form id="form-consulta-directa" class="buscador">
+            <input type="text" id="input-directo-id" aria-label="Código de solicitud" placeholder="CURSO-BPM-101" required>
+            <button type="submit" class="boton boton-sec chico">Consultar</button>
+          </form>
+        </div>
       </div>
     </section>
 
-    <!-- RESULTADO DETALLADO (Oculto inicialmente) -->
-    <section id="resultado-card" class="card" style="display: none; margin-top: 2rem;">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <!-- SECCIÓN 2: LISTADO DE CURSOS DE LA EMPRESA (Visible si HAY sesión) -->
+    <section id="seccion-cursos-empresa" class="bloque" hidden>
+      <div class="encabezado" style="margin-bottom: 1rem;">
         <div>
-          <h2 id="res-nombre-curso" class="card__title">Nombre del Curso</h2>
-          <p class="card__subtitle">Código: <strong id="res-codigo">-</strong> | ID Flowable: <span id="res-proc-id">-</span></p>
+          <h2>Cursos de la Empresa</h2>
+          <p>Seleccione un curso de la nómina para visualizar su estado y el detalle de las ramas de preparación.</p>
         </div>
         <div>
-          <span id="res-badge-estado" class="badge badge--progress">EN_PROCESO</span>
+          <button type="button" id="btn-recargar-cursos" class="boton boton-sec chico">↻ Actualizar lista</button>
         </div>
-      </header>
+      </div>
 
-      <div class="card__body">
-        <!-- STEPPER VISUAL DE PROCESO -->
-        <div class="stepper">
-          <div id="step-1" class="stepper__step stepper__step--completed">
-            <div class="stepper__circle">1</div>
-            <span class="stepper__label">Formulario Recibido</span>
+      <p id="cargando-cursos" class="cargando" hidden>Cargando cursos contratados…</p>
+
+      <div id="vacio-cursos" class="vacio" hidden>
+        <p>No se encontraron cursos registrados para esta empresa.</p>
+        <a href="index.html" class="boton boton-sec chico">Registrar nueva solicitud</a>
+      </div>
+
+      <div id="tabla-cursos-contenedor" class="tabla-scroll" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Capacitación</th>
+              <th>Estado</th>
+              <th>Cupo</th>
+              <th>Inicio previsto</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="filas-cursos"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3: DETALLE Y SEGUIMIENTO DEL CURSO SELECCIONADO -->
+    <section id="resultado" class="bloque" hidden>
+      <div class="encabezado">
+        <div>
+          <h2 id="res-nombre">Capacitación</h2>
+          <p>Código <span id="res-codigo" class="codigo">-</span> &bull; Proceso BPM <span id="res-proceso" class="codigo">-</span></p>
+        </div>
+        <span id="res-estado" class="estado">-</span>
+      </div>
+
+      <!-- Stepper del Ciclo de Vida del Curso -->
+      <ol class="pasos" aria-label="Etapas del proceso">
+        <li id="paso-1">Solicitud recibida</li>
+        <li id="paso-2">Propuesta acordada</li>
+        <li id="paso-3">Preparación (3 ramas)</li>
+        <li id="paso-4">Docencia y dictado</li>
+        <li id="paso-5">Cierre e informe</li>
+      </ol>
+
+      <!-- Ficha de datos principales -->
+      <dl class="datos">
+        <div><dt>Tarea actual en Flowable</dt><dd id="res-tarea">-</dd></div>
+        <div><dt>Fecha acordada / Inicio</dt><dd id="res-inicio">-</dd></div>
+        <div><dt>Conclusión</dt><dd id="res-fin">-</dd></div>
+        <div><dt>Participantes / Cupo</dt><dd id="res-cupo">-</dd></div>
+        <div><dt>Presupuesto acordado</dt><dd id="res-presupuesto">-</dd></div>
+        <div><dt>Programa / Fechas posibles</dt><dd id="res-programa">-</dd></div>
+        <div class="ancho"><dt>Observaciones / Dictamen</dt><dd id="res-obs">-</dd></div>
+      </dl>
+
+      <div class="acciones">
+        <a id="pdf-propuesta" class="boton boton-sec" href="#" target="_blank" rel="noopener">Descargar Propuesta (PDF)</a>
+        <a id="pdf-informe" class="boton boton-sec" href="#" target="_blank" rel="noopener">Descargar Informe de Resultados (PDF)</a>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- SECCIÓN 4: DETALLE DE LAS 3 RAMAS PARALELAS (Sección 1.2 y 4.1.2) -->
+      <!-- ================================================================= -->
+      <div id="bloque-ramas-paralelas" class="bloque-ramas">
+        <div class="bloque-ramas-header">
+          <div>
+            <h3>Preparación del Curso en Paralelo (3 Ramas Simultáneas)</h3>
+            <p style="font-size: 0.88rem; color: var(--grafito); margin-top: 0.2rem;">
+              Ejecución simultánea e independiente de Inscripciones, Materiales y Recursos (Secciones 1.2 y 4.1.2).
+            </p>
           </div>
-          <div id="step-2" class="stepper__step stepper__step--active">
-            <div class="stepper__circle">2</div>
-            <span class="stepper__label">Revisión Administrativa</span>
-          </div>
-          <div id="step-3" class="stepper__step">
-            <div class="stepper__circle">3</div>
-            <span class="stepper__label">Dictamen & Validación</span>
-          </div>
-          <div id="step-4" class="stepper__step">
-            <div class="stepper__circle">4</div>
-            <span class="stepper__label">Registro en Supabase</span>
-          </div>
+          <button type="button" id="btn-refrescar-ramas" class="boton boton-sec chico">↻ Actualizar ramas</button>
         </div>
 
-        <!-- DETALLES TÉCNICOS Y ESTADO -->
-        <div class="form-grid" style="margin-top: 2rem; background: #f8fafc; padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-          <div>
-            <span class="form-label">Tarea Actual en el Flujo:</span>
-            <p id="res-tarea-actual" style="font-size: 1.1rem; font-weight: 600; color: var(--color-primary); margin-top: 0.25rem;">-</p>
-          </div>
+        <div class="ramas-grid">
+          <!-- RAMA 1: INSCRIPCIONES -->
+          <article class="rama-card" id="card-rama-1">
+            <div class="rama-header">
+              <span class="rama-titulo">👥 1. Inscripciones</span>
+              <span id="badge-rama-1" class="badge-rama no-iniciada">No iniciada</span>
+            </div>
 
-          <div>
-            <span class="form-label">Fecha de Inicio del Proceso:</span>
-            <p id="res-fecha-inicio" style="margin-top: 0.25rem; color: #475569;">-</p>
-          </div>
+            <div class="rama-item">
+              <span class="rama-item-label">Nómina de la empresa:</span>
+              <span id="rama1-nomina" class="rama-item-valor">Pendiente de recepción</span>
+            </div>
 
-          <div>
-            <span class="form-label">Fecha de Conclusión:</span>
-            <p id="res-fecha-fin" style="margin-top: 0.25rem; color: #475569;">Pendiente</p>
-          </div>
+            <div class="rama-item">
+              <span class="rama-item-label">Confección de lista definitiva:</span>
+              <span id="rama1-lista" class="rama-item-valor">Pendiente</span>
+            </div>
 
-          <div>
-            <span class="form-label">Cupo / Participantes:</span>
-            <p id="res-cupo" style="margin-top: 0.25rem; color: #475569;">-</p>
-          </div>
+            <div class="rama-item">
+              <span class="rama-item-label">Responsable asignado:</span>
+              <span id="rama1-asignado" class="rama-item-valor">Balanceo de carga (Administración)</span>
+            </div>
 
-          <div class="form-group--full">
-            <span class="form-label">Observaciones / Informe de Resultados:</span>
-            <p id="res-observaciones" style="margin-top: 0.35rem; font-style: italic; color: #334155;">En evaluación académica por el personal administrativo asignado.</p>
-          </div>
+            <p id="rama1-detalle" class="rama-detalle">
+              La empresa envía la nómina y el sistema asigna la confección al integrante de Administración con menor carga.
+            </p>
+          </article>
 
-          <div class="form-group--full" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-            <a id="btn-pdf-propuesta" href="#" class="btn btn--secondary btn--sm" target="_blank" style="text-decoration: none;">📄 Descargar Propuesta (PDF)</a>
-            <a id="btn-pdf-informe" href="#" class="btn btn--secondary btn--sm" target="_blank" style="text-decoration: none;">📊 Descargar Informe de Resultados (PDF)</a>
-          </div>
+          <!-- RAMA 2: MATERIALES -->
+          <article class="rama-card" id="card-rama-2">
+            <div class="rama-header">
+              <span class="rama-titulo">📚 2. Materiales</span>
+              <span id="badge-rama-2" class="badge-rama no-iniciada">No iniciada</span>
+            </div>
+
+            <div class="rama-item">
+              <span class="rama-item-label">Material didáctico:</span>
+              <span id="rama2-materiales" class="rama-item-valor">Pendiente</span>
+            </div>
+
+            <div class="rama-item">
+              <span class="rama-item-label">Responsable / Reclamo:</span>
+              <span id="rama2-responsable" class="rama-item-valor">Grupo Administración</span>
+            </div>
+
+            <div class="rama-item">
+              <span class="rama-item-label">Canal de gestión:</span>
+              <span class="rama-item-valor">App Auxiliar Java (API Pura) o Portal Web</span>
+            </div>
+
+            <p id="rama2-detalle" class="rama-detalle">
+              Preparación de diapositivas, guías prácticas y documentación del curso por parte del personal administrativo.
+            </p>
+          </article>
+
+          <!-- RAMA 3: RECURSOS -->
+          <article class="rama-card" id="card-rama-3">
+            <div class="rama-header">
+              <span class="rama-titulo">🏛️ 3. Recursos y Espacios</span>
+              <span id="badge-rama-3" class="badge-rama no-iniciada">No iniciada</span>
+            </div>
+
+            <div class="rama-item">
+              <span class="rama-item-label">Evaluación de necesidades:</span>
+              <span id="rama3-evaluacion" class="rama-item-valor">Pendiente</span>
+            </div>
+
+            <div class="subrecursos-lista">
+              <!-- Aula Física -->
+              <div class="subrecurso-row">
+                <span class="subrecurso-nombre">🏢 Aula Física (Web Service)</span>
+                <span id="tag-recurso-fisica" class="subrecurso-tag no-req">No requerida</span>
+              </div>
+
+              <!-- Aula Virtual -->
+              <div class="subrecurso-row">
+                <span class="subrecurso-nombre">💻 Aula Virtual</span>
+                <span id="tag-recurso-virtual" class="subrecurso-tag no-req">No requerida</span>
+              </div>
+
+              <!-- Equipamiento Especial -->
+              <div class="subrecurso-row">
+                <span class="subrecurso-nombre">📽️ Equipamiento Especial</span>
+                <span id="tag-recurso-equip" class="subrecurso-tag no-req">No requerido</span>
+              </div>
+            </div>
+
+            <p id="rama3-detalle" class="rama-detalle">
+              Se evalúan los recursos requeridos y se gestiona cada uno. Deben completarse todos los seleccionados.
+            </p>
+          </article>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>Gestión y Tecnologías de Procesos de Negocio • Motor Flowable BPM & Spring Boot</p>
-  </footer>
-
-  <!-- SCRIPTS -->
   <script src="js/api.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('form-consulta');
-      const inputId = document.getElementById('input-id');
-      const btnConsultar = document.getElementById('btn-consultar');
-      const resultadoCard = document.getElementById('resultado-card');
+    const $ = (id) => document.getElementById(id);
+    const fecha = (f, vacio = '-') => f ? new Date(f).toLocaleString('es-AR') : vacio;
 
-      const resNombreCurso = document.getElementById('res-nombre-curso');
-      const resCodigo = document.getElementById('res-codigo');
-      const resProcId = document.getElementById('res-proc-id');
-      const resBadgeEstado = document.getElementById('res-badge-estado');
-      const resTareaActual = document.getElementById('res-tarea-actual');
-      const resFechaInicio = document.getElementById('res-fecha-inicio');
-      const resFechaFin = document.getElementById('res-fecha-fin');
-      const resCupo = document.getElementById('res-cupo');
-      const resObservaciones = document.getElementById('res-observaciones');
+    let cursoSeleccionadoId = null;
+    let sesionActual = null;
 
-      const step1 = document.getElementById('step-1');
-      const step2 = document.getElementById('step-2');
-      const step3 = document.getElementById('step-3');
-      const step4 = document.getElementById('step-4');
-
-      // Si viene por parámetro URL (?id=...)
-      const urlParams = new URLSearchParams(window.location.search);
-      const initialId = urlParams.get('id');
-      if (initialId) {
-        inputId.value = initialId;
-        ejecutarConsulta(initialId);
+    // Estados estándar del curso según Enunciado Sección 4.1.2:
+    // en preparacion, confirmado y pendiente de inicio, en desarrollo, en elaboracion del informe, finalizado, cancelado, rechazado
+    const ESTADOS = {
+      en_preparacion: {
+        clase: 'curso',
+        texto: 'En preparación',
+        pasos: ['hecho', 'hecho', 'actual', '', '']
+      },
+      confirmado: {
+        clase: 'curso',
+        texto: 'Confirmado y pendiente de inicio',
+        pasos: ['hecho', 'hecho', 'hecho', 'actual', '']
+      },
+      en_desarrollo: {
+        clase: 'curso',
+        texto: 'En desarrollo (dictado docente)',
+        pasos: ['hecho', 'hecho', 'hecho', 'actual', '']
+      },
+      informe: {
+        clase: 'curso',
+        texto: 'En elaboración de informe',
+        pasos: ['hecho', 'hecho', 'hecho', 'hecho', 'actual']
+      },
+      finalizado: {
+        clase: 'ok',
+        texto: 'Finalizado y aprobado',
+        pasos: ['hecho', 'hecho', 'hecho', 'hecho', 'hecho']
+      },
+      cancelado: {
+        clase: 'no',
+        texto: 'Cancelado durante preparación',
+        pasos: ['hecho', 'hecho', 'actual', '', '']
+      },
+      rechazado: {
+        clase: 'no',
+        texto: 'Propuesta rechazada',
+        pasos: ['hecho', 'hecho', '', '', '']
+      },
+      pendiente: {
+        clase: 'pendiente',
+        texto: 'Solicitud en evaluación inicial',
+        pasos: ['actual', '', '', '', '']
       }
+    };
 
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = inputId.value.trim();
-        if (id) ejecutarConsulta(id);
+    function clasificarEstado(raw) {
+      if (!raw) return 'pendiente';
+      const s = raw.toLowerCase().trim();
+      if (s.includes('preparacion') || s === 'en_preparacion') return 'en_preparacion';
+      if (s.includes('confirmado') || s.includes('pendiente de inicio')) return 'confirmado';
+      if (s.includes('desarrollo')) return 'en_desarrollo';
+      if (s.includes('informe')) return 'informe';
+      if (s.includes('finalizado') || s.includes('aprobado')) return 'finalizado';
+      if (s.includes('cancelado')) return 'cancelado';
+      if (s.includes('rechazado')) return 'rechazado';
+      return 'pendiente';
+    }
+
+    function mostrarEstado(rawEstado) {
+      const clave = clasificarEstado(rawEstado);
+      const conf = ESTADOS[clave] || ESTADOS.pendiente;
+      const badge = $('res-estado');
+
+      badge.className = 'estado ' + conf.clase;
+      badge.textContent = conf.texto;
+
+      conf.pasos.forEach((clase, i) => {
+        const paso = $('paso-' + (i + 1));
+        if (paso) paso.className = clase;
       });
+    }
 
-      async function ejecutarConsulta(id) {
+    // =========================================================================
+    // GESTIÓN DE SESIÓN Y LOGIN FLOWABLE
+    // =========================================================================
+
+    function llenarLogin(usuario, pass) {
+      $('login-usuario').value = usuario;
+      $('login-password').value = pass;
+    }
+
+    function guardarSesion(datos) {
+      sesionActual = datos;
+      localStorage.setItem('flowable_empresa_session', JSON.stringify(datos));
+      aplicarSesionEnUI();
+    }
+
+    function cargarSesionGuardada() {
+      const stored = localStorage.getItem('flowable_empresa_session');
+      if (stored) {
         try {
-          btnConsultar.disabled = true;
-          btnConsultar.textContent = 'Buscando...';
-
-          const data = await api.consultarEstado(id);
-
-          resNombreCurso.textContent = data.nombreCurso;
-          resCodigo.textContent = data.cursoId || 'N/A';
-          resProcId.textContent = data.processInstanceId;
-          resTareaActual.textContent = data.tareaActual || 'Proceso finalizado';
-          resFechaInicio.textContent = data.fechaInicio ? new Date(data.fechaInicio).toLocaleString() : 'N/A';
-          resFechaFin.textContent = data.fechaFin ? new Date(data.fechaFin).toLocaleString() : 'En proceso';
-
-          const vars = data.variables || {};
-          resCupo.textContent = (vars.cupoMaximo || vars.participantes || '-') + ' participantes';
-
-          document.getElementById('btn-pdf-propuesta').href = `/api/v1/cursos/procesos/instancias/${data.processInstanceId}/pdf/propuesta`;
-          document.getElementById('btn-pdf-informe').href = `/api/v1/cursos/procesos/instancias/${data.processInstanceId}/pdf/informe`;
-
-          if (vars.observaciones) {
-            resObservaciones.textContent = vars.observaciones;
-          } else {
-            resObservaciones.textContent = data.estado === 'finalizado' 
-              ? 'Curso aprobado satisfactoriamente por la administración.'
-              : 'En revisión por el equipo administrativo.';
-          }
-
-          // Ajustar badge y stepper según estado
-          actualizarStepperYBadge(data.estado);
-
-          resultadoCard.style.display = 'block';
-          resultadoCard.scrollIntoView({ behavior: 'smooth' });
-          showToast('Estado recuperado con éxito', 'success');
-        } catch (err) {
-          console.error(err);
-          resultadoCard.style.display = 'none';
-          showToast(err.message, 'error');
-        } finally {
-          btnConsultar.disabled = false;
-          btnConsultar.textContent = 'Consultar Estado';
+          sesionActual = JSON.parse(stored);
+          aplicarSesionEnUI();
+          return true;
+        } catch (e) {
+          localStorage.removeItem('flowable_empresa_session');
         }
       }
+      return false;
+    }
 
-      function actualizarStepperYBadge(estado) {
-        step1.className = 'stepper__step stepper__step--completed';
-        step2.className = 'stepper__step';
-        step3.className = 'stepper__step';
-        step4.className = 'stepper__step';
+    function cerrarSesion() {
+      sesionActual = null;
+      localStorage.removeItem('flowable_empresa_session');
+      $('barra-sesion').hidden = true;
+      $('seccion-cursos-empresa').hidden = true;
+      $('seccion-login').hidden = false;
+      showToast('Sesión cerrada correctamente', 'success');
+    }
 
-        if (estado === 'en_preparacion' || estado === 'EN_PROCESO') {
-          resBadgeEstado.className = 'badge badge--progress';
-          resBadgeEstado.textContent = 'EN EVALUACIÓN';
-          step2.className = 'stepper__step stepper__step--active';
-        } else if (estado === 'finalizado' || estado === 'APROBADO_PARA_PUBLICACION') {
-          resBadgeEstado.className = 'badge badge--success';
-          resBadgeEstado.textContent = 'CURSO FINALIZADO / APROBADO';
-          step2.className = 'stepper__step stepper__step--completed';
-          step3.className = 'stepper__step stepper__step--completed';
-          step4.className = 'stepper__step stepper__step--completed';
-        } else if (estado === 'rechazado' || estado === 'cancelado') {
-          resBadgeEstado.className = 'badge badge--danger';
-          resBadgeEstado.textContent = 'RECHAZADO';
-          step2.className = 'stepper__step stepper__step--completed';
-          step3.className = 'stepper__step stepper__step--completed';
-          step4.className = 'stepper__step stepper__step--active';
-        } else {
-          resBadgeEstado.className = 'badge badge--pending';
-          resBadgeEstado.textContent = estado;
+    async function aplicarSesionEnUI() {
+      if (!sesionActual) return;
+      $('seccion-login').hidden = true;
+      $('barra-sesion').hidden = false;
+      $('seccion-cursos-empresa').hidden = false;
+
+      $('sesion-nombre').textContent = sesionActual.empresaNombre || sesionActual.nombre || 'Empresa';
+      $('sesion-email').textContent = sesionActual.email || sesionActual.userId;
+      $('sesion-avatar').textContent = (sesionActual.empresaNombre || sesionActual.nombre || 'E').charAt(0).toUpperCase();
+
+      await cargarCursosDeEmpresa(sesionActual.email || sesionActual.userId);
+    }
+
+    // =========================================================================
+    // CARGA DE CURSOS DE LA EMPRESA
+    // =========================================================================
+
+    async function cargarCursosDeEmpresa(email) {
+      const cargando = $('cargando-cursos');
+      const vacio = $('vacio-cursos');
+      const tablaCont = $('tabla-cursos-contenedor');
+      const tbody = $('filas-cursos');
+
+      cargando.hidden = false;
+      vacio.hidden = true;
+      tablaCont.hidden = true;
+      tbody.innerHTML = '';
+
+      try {
+        const cursos = await api.obtenerCursosPorEmpresa(email);
+        cargando.hidden = true;
+
+        if (!cursos || cursos.length === 0) {
+          vacio.hidden = false;
+          return;
         }
+
+        cursos.forEach((c) => {
+          const tr = document.createElement('tr');
+          tr.className = 'fila-curso';
+          tr.id = 'fila-curso-' + c.curso_id;
+
+          const estadoClave = clasificarEstado(c.estado);
+          const estadoConf = ESTADOS[estadoClave] || ESTADOS.pendiente;
+
+          tr.innerHTML = `
+            <td><strong class="codigo">${c.curso_id}</strong></td>
+            <td>${c.nombre || 'Capacitación'}</td>
+            <td><span class="estado ${estadoConf.clase}">${estadoConf.texto}</span></td>
+            <td>${c.cupo_estimado || 20} alumnos</td>
+            <td>${c.fecha_inicio || c.fechas_preferidas || 'A convenir'}</td>
+            <td class="acc">
+              <button type="button" class="boton boton-sec chico">Ver seguimiento</button>
+            </td>
+          `;
+
+          tr.addEventListener('click', () => {
+            document.querySelectorAll('.fila-curso').forEach(el => el.classList.remove('seleccionada'));
+            tr.classList.add('seleccionada');
+            consultar(c.curso_id);
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        tablaCont.hidden = false;
+
+        // Si se solicitó un ID específico por URL, seleccionarlo; si no, seleccionar el primero
+        const urlId = new URLSearchParams(location.search).get('id');
+        if (urlId) {
+          consultar(urlId);
+        } else if (cursos.length > 0) {
+          tbody.firstElementChild.classList.add('seleccionada');
+          consultar(cursos[0].curso_id);
+        }
+
+      } catch (err) {
+        cargando.hidden = true;
+        console.error(err);
+        showToast('Error al cargar cursos de la empresa: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // CONSULTA DEL ESTADO Y DETALLE DE RAMAS
+    // =========================================================================
+
+    async function consultar(identificador) {
+      if (!identificador) return;
+      cursoSeleccionadoId = identificador;
+
+      try {
+        const d = await api.consultarEstado(identificador);
+        const v = d.variables || {};
+
+        $('res-nombre').textContent = d.nombreCurso;
+        $('res-codigo').textContent = d.cursoId || 'S/C';
+        $('res-proceso').textContent = d.processInstanceId || 'N/A';
+        $('res-tarea').textContent = d.tareaActual || 'Proceso finalizado';
+        $('res-inicio').textContent = v.fechaInicioCurso || v.fecha_inicio || fecha(d.fechaInicio, 'A convenir con la empresa');
+        $('res-fin').textContent = fecha(d.fechaFin, 'En curso');
+        $('res-cupo').textContent = (v.cupoMaximo || v.participantes || v.cupo_estimado || '-') + ' participantes';
+        $('res-presupuesto').textContent = v.presupuesto || 'Presupuesto estándar';
+        $('res-programa').textContent = v.fechasPosibles || v.fechas_preferidas || 'Programa oficial según propuesta acordada';
+        $('res-obs').textContent = v.observaciones || v.motivoRechazo || v.motivoCancelacion ||
+          (d.estado === 'finalizado' ? 'Curso aprobado por la administración y expediente archivado.' : 'En revisión y seguimiento por el equipo institucional.');
+
+        const basePdf = `/api/v1/cursos/procesos/instancias/${d.processInstanceId}/pdf`;
+        $('pdf-propuesta').href = `${basePdf}/propuesta`;
+        $('pdf-informe').href = `${basePdf}/informe`;
+
+        mostrarEstado(d.estado);
+
+        // Actualizar detalle de las 3 ramas paralelas
+        if (d.detalleRamas) {
+          renderizarRamas(d.detalleRamas);
+        } else if (d.processInstanceId) {
+          actualizarRamasManual(d.processInstanceId);
+        }
+
+        $('resultado').hidden = false;
+        $('resultado').scrollIntoView({ behavior: 'smooth' });
+
+      } catch (err) {
+        console.error(err);
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function actualizarRamasManual(pid) {
+      try {
+        const ramas = await api.obtenerDetalleRamas(pid);
+        renderizarRamas(ramas);
+      } catch (e) {
+        console.debug('No se pudieron obtener ramas paralelas:', e);
+      }
+    }
+
+    function renderizarRamas(ramas) {
+      if (!ramas) return;
+
+      // RAMA 1: INSCRIPCIONES
+      const r1 = ramas.ramaInscripciones || {};
+      const badge1 = $('badge-rama-1');
+      const card1 = $('card-rama-1');
+
+      badge1.textContent = formatearEstadoRama(r1.estado);
+      badge1.className = 'badge-rama ' + claseEstadoRama(r1.estado);
+      card1.className = 'rama-card ' + (r1.estado === 'COMPLETADA' ? 'completada' : (r1.estado === 'EN_EJECUCION' ? 'activa' : ''));
+
+      $('rama1-nomina').textContent = r1.nominaRecibida ? `Recibida (${r1.totalParticipantes || 0} personas)` : 'Pendiente de envío por la empresa';
+      $('rama1-lista').textContent = r1.actividadActual || (r1.estado === 'COMPLETADA' ? 'Lista definitiva confeccionada' : 'Pendiente');
+      $('rama1-asignado').textContent = r1.asignado || 'Personal de Administración (Balanceo)';
+      $('rama1-detalle').textContent = r1.detalle || 'Recepción de nómina y confección de lista definitiva.';
+
+      // RAMA 2: MATERIALES
+      const r2 = ramas.ramaMateriales || {};
+      const badge2 = $('badge-rama-2');
+      const card2 = $('card-rama-2');
+
+      badge2.textContent = formatearEstadoRama(r2.estado);
+      badge2.className = 'badge-rama ' + claseEstadoRama(r2.estado);
+      card2.className = 'rama-card ' + (r2.estado === 'COMPLETADA' ? 'completada' : (r2.estado === 'EN_EJECUCION' ? 'activa' : ''));
+
+      $('rama2-materiales').textContent = r2.actividadActual || (r2.estado === 'COMPLETADA' ? 'Material didáctico listo' : 'Pendiente');
+      $('rama2-responsable').textContent = r2.responsable || r2.asignado || 'Equipo de Administración';
+      $('rama2-detalle').textContent = r2.detalle || 'Preparación de materiales didácticos.';
+
+      // RAMA 3: RECURSOS
+      const r3 = ramas.ramaRecursos || {};
+      const badge3 = $('badge-rama-3');
+      const card3 = $('card-rama-3');
+
+      badge3.textContent = formatearEstadoRama(r3.estado);
+      badge3.className = 'badge-rama ' + claseEstadoRama(r3.estado);
+      card3.className = 'rama-card ' + (r3.estado === 'COMPLETADA' ? 'completada' : (['EN_EJECUCION', 'EN_GESTION', 'EN_EVALUACION'].includes(r3.estado) ? 'activa' : ''));
+
+      $('rama3-evaluacion').textContent = r3.actividadActual || 'Evaluación de necesidades';
+      $('rama3-detalle').textContent = r3.detalle || 'Evaluación y contratación de recursos.';
+
+      const rec = r3.recursos || {};
+      actualizarTagRecurso('tag-recurso-fisica', rec.aulaFisica);
+      actualizarTagRecurso('tag-recurso-virtual', rec.aulaVirtual);
+      actualizarTagRecurso('tag-recurso-equip', rec.equipamiento);
+    }
+
+    function actualizarTagRecurso(elementId, recurso) {
+      const el = $(elementId);
+      if (!el || !recurso) return;
+
+      if (!recurso.requerida && !recurso.requerido) {
+        el.className = 'subrecurso-tag no-req';
+        el.textContent = 'No requerida';
+      } else if (['RESERVADA', 'HABILITADA', 'CONTRATADO'].includes(recurso.estado)) {
+        el.className = 'subrecurso-tag ok';
+        el.textContent = recurso.estado + (recurso.detalle ? ` (${recurso.detalle})` : '');
+      } else if (['EN_GESTION', 'EN_PROCESO'].includes(recurso.estado)) {
+        el.className = 'subrecurso-tag progreso';
+        el.textContent = 'En gestión';
+      } else {
+        el.className = 'subrecurso-tag pend';
+        el.textContent = 'Pendiente';
+      }
+    }
+
+    function formatearEstadoRama(estado) {
+      if (!estado) return 'No iniciada';
+      switch (estado) {
+        case 'COMPLETADA': return 'Completada ✓';
+        case 'EN_EJECUCION': return 'En ejecución';
+        case 'EN_EVALUACION': return 'En evaluación';
+        case 'EN_GESTION': return 'En gestión';
+        case 'PENDIENTE': return 'Pendiente';
+        default: return estado.replace('_', ' ');
+      }
+    }
+
+    function claseEstadoRama(estado) {
+      if (!estado) return 'no-iniciada';
+      switch (estado) {
+        case 'COMPLETADA': return 'completada';
+        case 'EN_EJECUCION':
+        case 'EN_GESTION': return 'ejecucion';
+        case 'EN_EVALUACION': return 'evaluacion';
+        case 'PENDIENTE': return 'pendiente';
+        default: return 'no-iniciada';
+      }
+    }
+
+    // =========================================================================
+    // LISTENERS DE FORMULARIOS Y EVENTOS
+    // =========================================================================
+
+    // Submit de Login
+    $('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = $('login-usuario').value.trim();
+      const pass = $('login-password').value;
+      const btn = $('btn-login');
+
+      if (!user || !pass) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Autenticando con Flowable…';
+
+      try {
+        const datos = await api.login(user, pass);
+        guardarSesion(datos);
+        showToast('¡Bienvenido! Autenticado correctamente con Flowable.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Iniciar sesión con Flowable';
+      }
+    });
+
+    // Cerrar sesión
+    $('btn-cerrar-sesion').addEventListener('click', cerrarSesion);
+
+    // Recargar cursos
+    $('btn-recargar-cursos').addEventListener('click', () => {
+      if (sesionActual) {
+        cargarCursosDeEmpresa(sesionActual.email || sesionActual.userId);
+        showToast('Lista de cursos actualizada', 'success');
+      }
+    });
+
+    // Refrescar ramas paralelas en tiempo real
+    $('btn-refrescar-ramas').addEventListener('click', () => {
+      if (cursoSeleccionadoId) {
+        consultar(cursoSeleccionadoId);
+        showToast('Ramas paralelas actualizadas', 'success');
+      }
+    });
+
+    // Formulario de consulta directa sin login
+    $('form-consulta-directa').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = $('input-directo-id').value.trim();
+      if (id) consultar(id);
+    });
+
+    // Inicialización al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      const sesionExiste = cargarSesionGuardada();
+      const urlId = new URLSearchParams(location.search).get('id');
+
+      if (!sesionExiste && urlId) {
+        // Consulta directa por URL
+        consultar(urlId);
       }
     });
   </script>

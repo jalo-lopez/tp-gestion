@@ -20,6 +20,8 @@ import java.util.Map;
 
 /**
  * Controlador REST que expone los endpoints del ciclo de vida del proceso BPMN,
+ * la autenticación con Flowable (Sección 3.3 y 4.1.2),
+ * el detalle de las 3 ramas paralelas (Sección 1.2 y 4.1.2),
  * la simulación de comunicaciones empresariales (Sección 4.2.2),
  * las métricas históricas (Sección 4.3) y la descarga de documentos oficiales en PDF.
  */
@@ -34,6 +36,27 @@ public class CursoProcesoController {
     public CursoProcesoController(CursoProcessService cursoProcessService, PdfGeneratorService pdfGeneratorService) {
         this.cursoProcessService = cursoProcessService;
         this.pdfGeneratorService = pdfGeneratorService;
+    }
+
+    // =========================================================================
+    // 0. AUTENTICACIÓN CON FLOWABLE IDM (Sección 3.3 y 4.1.2)
+    // =========================================================================
+
+    @PostMapping("/auth/login")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(
+            @RequestBody(required = false) Map<String, String> credenciales) {
+        String username = credenciales != null ? credenciales.get("username") : null;
+        String password = credenciales != null ? credenciales.get("password") : null;
+        try {
+            Map<String, Object> usuario = cursoProcessService.autenticarUsuario(username, password);
+            return ResponseEntity.ok(ApiResponse.exito("Autenticación exitosa en Flowable", usuario));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(se.getMessage()));
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(iae.getMessage()));
+        }
     }
 
     // =========================================================================
@@ -91,6 +114,13 @@ public class CursoProcesoController {
             @PathVariable("identificador") String identificador) {
         EstadoCursoResponse estado = cursoProcessService.consultarEstadoCurso(identificador);
         return ResponseEntity.ok(ApiResponse.exito("Estado del curso obtenido correctamente", estado));
+    }
+
+    @GetMapping("/cursos/{identificador}/detalle-ramas")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> consultarDetalleRamas(
+            @PathVariable("identificador") String identificador) {
+        Map<String, Object> ramas = cursoProcessService.obtenerDetalleRamasPreparacion(identificador);
+        return ResponseEntity.ok(ApiResponse.exito("Detalle de ramas de preparación obtenido correctamente", ramas));
     }
 
     @GetMapping("/empresas/{email}/cursos")

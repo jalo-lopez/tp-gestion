@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Inicializador de usuarios y grupos en Flowable BPM (IdentityService).
- * Requisitos Sección 2 y 3.3:
+ * Requisitos Sección 2, 3.3 y 4.1.2:
  * - Grupo 'Administración':
  *     - admin_laura (Jefe administrativo)
  *     - admin_martin (Administrativo)
@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component;
  *     - docente_carlos (Jefe del equipo docente)
  *     - docente_ana (Docente regular)
  *     - docente_pedro (Docente regular)
+ * - Grupo 'Empresas':
+ *     - contacto@techsolutions.com (Tech Solutions S.A.)
+ *     - mlopez@innovalog.com (Innovación & Logística Global SRL)
  */
 @Component
 public class FlowableIdentityDataInitializer implements CommandLineRunner {
@@ -26,6 +29,7 @@ public class FlowableIdentityDataInitializer implements CommandLineRunner {
 
     public static final String GRUPO_ADMINISTRACION = "Administración";
     public static final String GRUPO_DOCENTES = "Docentes";
+    public static final String GRUPO_EMPRESAS = "Empresas";
 
     public static final String USER_JEFE_ADMIN = "admin_laura";
     public static final String USER_ADMIN_MARTIN = "admin_martin";
@@ -46,6 +50,7 @@ public class FlowableIdentityDataInitializer implements CommandLineRunner {
         // 1. Crear grupos
         crearGrupoSiNoExiste(GRUPO_ADMINISTRACION, "Equipo de Administración", "assignment");
         crearGrupoSiNoExiste(GRUPO_DOCENTES, "Equipo Docente", "assignment");
+        crearGrupoSiNoExiste(GRUPO_EMPRESAS, "Empresas Solicitantes", "assignment");
 
         // 2. Crear usuarios de Administración
         crearUsuarioSiNoExiste(USER_JEFE_ADMIN, "Laura", "Gómez (Jefe Administrativo)", "laura@institucion.edu", "password", GRUPO_ADMINISTRACION);
@@ -56,10 +61,14 @@ public class FlowableIdentityDataInitializer implements CommandLineRunner {
         crearUsuarioSiNoExiste(USER_DOCENTE_ANA, "Ana", "Fernández (Docente)", "ana@institucion.edu", "password", GRUPO_DOCENTES);
         crearUsuarioSiNoExiste(USER_DOCENTE_PEDRO, "Pedro", "López (Docente)", "pedro@institucion.edu", "password", GRUPO_DOCENTES);
 
+        // 4. Crear cuentas iniciales de Empresas (Sección 4.1.2)
+        crearUsuarioSiNoExiste("contacto@techsolutions.com", "Tech Solutions", "S.A.", "contacto@techsolutions.com", "empresa123", GRUPO_EMPRESAS);
+        crearUsuarioSiNoExiste("mlopez@innovalog.com", "Innovación & Logística", "SRL", "mlopez@innovalog.com", "empresa123", GRUPO_EMPRESAS);
+
         log.info("Grupos y usuarios de Flowable configurados exitosamente.");
     }
 
-    private void crearGrupoSiNoExiste(String groupId, String groupName, String type) {
+    public void crearGrupoSiNoExiste(String groupId, String groupName, String type) {
         Group group = identityService.createGroupQuery().groupId(groupId).singleResult();
         if (group == null) {
             group = identityService.newGroup(groupId);
@@ -70,7 +79,7 @@ public class FlowableIdentityDataInitializer implements CommandLineRunner {
         }
     }
 
-    private void crearUsuarioSiNoExiste(String userId, String firstName, String lastName, String email, String password, String groupId) {
+    public void crearUsuarioSiNoExiste(String userId, String firstName, String lastName, String email, String password, String groupId) {
         User user = identityService.createUserQuery().userId(userId).singleResult();
         if (user == null) {
             user = identityService.newUser(userId);
@@ -80,13 +89,19 @@ public class FlowableIdentityDataInitializer implements CommandLineRunner {
             user.setPassword(password);
             identityService.saveUser(user);
             log.info("Usuario creado en Flowable: {}", userId);
+        } else if (password != null && !password.isBlank()) {
+            user.setPassword(password);
+            identityService.saveUser(user);
         }
 
         // Vincular usuario al grupo si no es miembro
-        Group membership = identityService.createGroupQuery().groupId(groupId).groupMember(userId).singleResult();
-        if (membership == null) {
-            identityService.createMembership(userId, groupId);
-            log.info("Usuario [{}] asignado al grupo [{}]", userId, groupId);
+        if (groupId != null && !groupId.isBlank()) {
+            crearGrupoSiNoExiste(groupId, groupId, "assignment");
+            Group membership = identityService.createGroupQuery().groupId(groupId).groupMember(userId).singleResult();
+            if (membership == null) {
+                identityService.createMembership(userId, groupId);
+                log.info("Usuario [{}] asignado al grupo [{}]", userId, groupId);
+            }
         }
     }
 }

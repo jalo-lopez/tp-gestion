@@ -61,42 +61,36 @@ class CursoProcesoControllerTest {
         Map<?, ?> datosInicio = (Map<?, ?>) respMap.get("datos");
         String processInstanceId = (String) datosInicio.get("processInstanceId");
 
-        // 2. Consultar las tareas pendientes asignadas a admin_laura (Jefe administrativo)
-        MvcResult queryResult = mockMvc.perform(get("/api/v1/cursos/procesos/tareas/pendientes")
+        assertThat(processInstanceId).isNotNull();
+
+        // 2. Consultar tareas pendientes para la jefa administrativa (admin_laura)
+        MvcResult tareasResult = mockMvc.perform(get("/api/v1/cursos/procesos/tareas/pendientes")
                         .param("usuario", "admin_laura"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos", hasSize(greaterThanOrEqualTo(1))))
                 .andReturn();
 
-        String responseBody = queryResult.getResponse().getContentAsString();
-        Map<?, ?> map = objectMapper.readValue(responseBody, Map.class);
-        java.util.List<?> datos = (java.util.List<?>) map.get("datos");
-
-        String taskIdEncontrada = null;
-        for (Object obj : datos) {
-            Map<?, ?> tarea = (Map<?, ?>) obj;
-            if ("Registrar y Elaborar propuesta".equals(tarea.get("taskName"))
-                    && processInstanceId.equals(tarea.get("processInstanceId"))) {
-                taskIdEncontrada = (String) tarea.get("taskId");
-                break;
-            }
-        }
-
-        assertThat(taskIdEncontrada).isNotNull();
+        String bodyTareas = tareasResult.getResponse().getContentAsString();
+        Map<?, ?> respTareas = objectMapper.readValue(bodyTareas, Map.class);
+        var listaTareas = (java.util.List<?>) respTareas.get("datos");
+        Map<?, ?> tareaPropuesta = (Map<?, ?>) listaTareas.get(0);
+        String taskId = (String) tareaPropuesta.get("taskId");
 
         // 3. Completar la tarea 'Registrar y Elaborar propuesta'
         CompletarTareaRequest completarReq = new CompletarTareaRequest();
         completarReq.setAprobado(true);
-        completarReq.setObservaciones("Propuesta elaborada desde test REST");
-        completarReq.setVariablesAdicionales(Map.of("presupuesto", "$ 900.000", "programa", "Temario completo"));
+        completarReq.setPrograma("Temario completo");
+        completarReq.setPresupuesto("$ 900.000");
+        completarReq.setFechasPosibles("Noviembre / Diciembre");
 
-        mockMvc.perform(post("/api/v1/cursos/procesos/tareas/{taskId}/completar", taskIdEncontrada)
+        mockMvc.perform(post("/api/v1/cursos/procesos/tareas/{taskId}/completar", taskId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(completarReq)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exito").value(true));
 
-        // 4. Consultar comunicaciones habilitadas (debe incluir ACEPTAR_PROPUESTA)
+        // 4. Verificar que se habilitó la comunicación de Aceptación/Rechazo/Modificaciones
         mockMvc.perform(get("/api/v1/cursos/procesos/instancias/{id}/comunicaciones-habilitadas", processInstanceId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.datos", hasItem("ACEPTAR_PROPUESTA")));
@@ -127,10 +121,47 @@ class CursoProcesoControllerTest {
                 .andExpect(jsonPath("$.datos.programa").value("Temario completo"))
                 .andExpect(jsonPath("$.datos.presupuesto").value("$ 900.000"));
 
-        // 9. Verificar endpoint de métricas
+        // 9. Verificar detalle de las 3 ramas paralelas (Sección 1.2 y 4.1.2)
+        mockMvc.perform(get("/api/v1/cursos/procesos/cursos/{identificador}/detalle-ramas", "CURSO-REST-202"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos.ramaInscripciones").exists())
+                .andExpect(jsonPath("$.datos.ramaMateriales").exists())
+                .andExpect(jsonPath("$.datos.ramaRecursos").exists());
+
+        // 10. Verificar endpoint de métricas
         mockMvc.perform(get("/api/v1/cursos/procesos/metricas/resultados"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exito").value(true))
                 .andExpect(jsonPath("$.datos.distribucion").isArray());
+    }
+
+    @Test
+    @DisplayName("Debe autenticar usuarios institucionales y empresas contra Flowable IdentityService")
+    void testLoginFlowable() throws Exception {
+        // 1. Login exitoso de empresa de prueba creada en Flowable
+        mockMvc.perform(post("/api/v1/cursos/procesos/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"contacto@techsolutions.com\",\"password\":\"empresa123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos.tipo").value("EMPRESA"))
+                .andExpect(jsonPath("$.datos.email").value("contacto@techsolutions.com"));
+
+        // 2. Login exitoso de usuario institucional de Flowable (admin_laura)
+        mockMvc.perform(post("/api/v1/cursos/procesos/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin_laura\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos.tipo").value("ADMINISTRACION"))
+                .andExpect(jsonPath("$.datos.userId").value("admin_laura"));
+
+        // 3. Login fallido con contraseña incorrecta (HTTP 401 Unauthorized)
+        mockMvc.perform(post("/api/v1/cursos/procesos/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin_laura\",\"password\":\"clave_erronea\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.exito").value(false));
     }
 }

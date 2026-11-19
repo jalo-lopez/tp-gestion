@@ -10,6 +10,9 @@ public class CompletarTareaRequest {
 
     private Boolean aprobado;
     private String observaciones;
+    private String programa;
+    private String presupuesto;
+    private String fechasPosibles;
     private Map<String, Object> variablesAdicionales;
 
     public CompletarTareaRequest() {
@@ -36,6 +39,15 @@ public class CompletarTareaRequest {
         if (observaciones != null) {
             vars.put("observaciones", observaciones);
         }
+        if (programa != null) {
+            vars.put("programa", programa);
+        }
+        if (presupuesto != null) {
+            vars.put("presupuesto", presupuesto);
+        }
+        if (fechasPosibles != null) {
+            vars.put("fechasPosibles", fechasPosibles);
+        }
         return vars;
     }
 
@@ -53,6 +65,30 @@ public class CompletarTareaRequest {
 
     public void setObservaciones(String observaciones) {
         this.observaciones = observaciones;
+    }
+
+    public String getPrograma() {
+        return programa;
+    }
+
+    public void setPrograma(String programa) {
+        this.programa = programa;
+    }
+
+    public String getPresupuesto() {
+        return presupuesto;
+    }
+
+    public void setPresupuesto(String presupuesto) {
+        this.presupuesto = presupuesto;
+    }
+
+    public String getFechasPosibles() {
+        return fechasPosibles;
+    }
+
+    public void setFechasPosibles(String fechasPosibles) {
+        this.fechasPosibles = fechasPosibles;
     }
 
     public Map<String, Object> getVariablesAdicionales() {
