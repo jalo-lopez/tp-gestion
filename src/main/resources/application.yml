@@ -10,7 +10,7 @@ spring:
   # Para conectar a Supabase / PostgreSQL en la nube, defina las variables de entorno:
   # SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD.
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:/tmp/flowable_db;DB_CLOSE_DELAY=-1}
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:/tmp/flowable_db;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
