@@ -8,102 +8,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible+Next:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    /* ── Estilos adicionales para los modales específicos ── */
-    .modal__dialog {
-      max-width: 560px;
-      width: 95%;
-    }
-    .modal__dialog--lg {
-      max-width: 680px;
-    }
-    .modal-info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.4rem 1.5rem;
-      background: #f8fafc;
-      padding: 0.875rem 1rem;
-      border-radius: var(--radius-md);
-      font-size: 0.875rem;
-      border-left: 3px solid var(--color-primary);
-    }
-    .modal-info-grid p { margin: 0; }
-
-    /* Checklist de recursos */
-    .checklist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .checklist__item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.6rem 0.9rem;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .checklist__item:hover { background: #f0f9ff; border-color: var(--color-primary); }
-    .checklist__item input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: var(--color-primary); cursor: pointer; }
-    .checklist__item.checked { background: #eff6ff; border-color: var(--color-primary); font-weight: 600; }
-    .checklist__item .item-icon { font-size: 1.2rem; }
-    .checklist__validation-msg {
-      display: none;
-      color: var(--color-danger);
-      font-size: 0.8rem;
-      margin-top: 0.3rem;
-    }
-    .checklist__validation-msg.visible { display: block; }
-
-    /* Lista definitiva – participantes */
-    .participant-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 220px; overflow-y: auto; }
-    .participant-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-    .participant-row input { flex: 1; }
-    .btn--icon {
-      padding: 0.3rem 0.5rem;
-      font-size: 1rem;
-      line-height: 1;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--color-border);
-      background: #fff;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .btn--icon:hover { background: #fee2e2; border-color: var(--color-danger); }
-
-    /* Paso de modal con tabs */
-    .modal-step { display: none; }
-    .modal-step.active { display: block; }
-    .step-indicator {
-      display: flex;
-      gap: 0.4rem;
-      margin-bottom: 1rem;
-    }
-    .step-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--color-border);
-      transition: background 0.2s;
-    }
-    .step-dot.active { background: var(--color-primary); }
-  </style>
 </head>
 <body>
-
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header__container">
-      <a href="index.html" class="header__brand">
-        <div class="header__logo-icon">BPM</div>
-        <span class="header__title">Gestión de Procesos &amp; Cursos</span>
-      </a>
-      <nav class="header__nav">
-        <a href="index.html" class="header__link">Solicitar Capacitación</a>
-        <a href="panel-empresa.html" class="header__link">Portal Empresa</a>
-        <a href="panel-admin.html" class="header__link header__link--active">Panel Administrativo</a>
-        <a href="panel-docente.html" class="header__link">Portal Docente (Móvil)</a>
+  <header class="cabecera">
+    <div class="cabecera-in">
+      <a class="marca" href="index.html">Cursos y procesos</a>
+      <nav class="nav" aria-label="Principal">
+        <a href="index.html">Solicitar capacitación</a>
+        <a href="panel-empresa.html">Seguimiento</a>
+        <a href="panel-admin.html" aria-current="page">Administración</a>
+        <a href="panel-docente.html">Docentes</a>
       </nav>
     </div>
   </header>
@@ -146,629 +60,79 @@
     </section>
   </main>
 
-  <!-- ════════════════════════════════════════════════════════════
-       MODAL 1 — Registrar y Elaborar Propuesta
-       ════════════════════════════════════════════════════════════ -->
-  <div id="modal-elaborar-propuesta" class="modal">
-    <div class="modal__backdrop" onclick="cerrarTodosLosModales()"></div>
-    <div class="modal__dialog modal__dialog--lg">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card__title" style="font-size: 1.1rem;">📝 Registrar y Elaborar Propuesta</h3>
-        <button onclick="cerrarTodosLosModales()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem;">✕</button>
-      </header>
+  <dialog id="revision" aria-labelledby="rev-titulo">
+    <form id="form-revision">
+      <h2 id="rev-titulo"></h2>
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="rev-curso"></dd></div>
+        <div><dt>Solicitante</dt><dd id="rev-solicitante"></dd></div>
+        <div><dt>Cupo</dt><dd id="rev-cupo"></dd></div>
+      </dl>
+      <div class="campo">
+        <label for="rev-obs">Observaciones para el historial <span class="pista">(opcional)</span></label>
+        <textarea id="rev-obs" placeholder="Justificación académica o administrativa"></textarea>
+      </div>
+      <div class="acciones">
+        <button type="button" id="rev-cancelar" class="boton boton-sec">Cancelar</button>
+        <button type="submit" value="rechazar" class="boton boton-no">Rechazar</button>
+        <button type="submit" value="aprobar" class="boton boton-ok">Aprobar</button>
+      </div>
+    </form>
+  </dialog>
 
-      <form id="form-elaborar-propuesta" class="card__body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <input type="hidden" id="ep-task-id">
-
-        <!-- Info del curso -->
-        <div class="modal-info-grid">
-          <p><strong>Curso:</strong> <span id="ep-info-curso">-</span></p>
-          <p><strong>Código:</strong> <span id="ep-info-id">-</span></p>
-          <p><strong>Solicitante:</strong> <span id="ep-info-solicitante">-</span></p>
-          <p><strong>Cupo estimado:</strong> <span id="ep-info-cupo">-</span></p>
-        </div>
-
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label form-label--required">Título de la Propuesta</label>
-            <input id="ep-titulo" type="text" class="form-input" placeholder="Ej: Propuesta de capacitación en Python avanzado" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label form-label--required">Modalidad</label>
-            <select id="ep-modalidad" class="form-select" required>
-              <option value="">Seleccionar...</option>
-              <option value="presencial">Presencial</option>
-              <option value="virtual">Virtual</option>
-              <option value="hibrida">Híbrida</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label form-label--required">Duración estimada (horas)</label>
-            <input id="ep-duracion" type="number" class="form-input" placeholder="Ej: 20" min="1" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label form-label--required">Fecha de inicio propuesta</label>
-            <input id="ep-fecha-inicio" type="date" class="form-input" required>
-          </div>
-        </div>
-
-        <div class="form-group form-group--full">
-          <label class="form-label form-label--required">Descripción y objetivos del curso</label>
-          <textarea id="ep-descripcion" class="form-textarea" rows="3" placeholder="Describa los objetivos pedagógicos, contenidos y metodología..." required></textarea>
-        </div>
-
-        <div class="form-group form-group--full">
-          <label class="form-label">Observaciones adicionales</label>
-          <textarea id="ep-observaciones" class="form-textarea" rows="2" placeholder="Requisitos especiales, condiciones particulares, etc."></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarTodosLosModales()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-ep" class="btn btn--primary">Registrar Propuesta →</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════
-       MODAL 2 — Revisar Propuesta
-       ════════════════════════════════════════════════════════════ -->
-  <div id="modal-revisar-propuesta" class="modal">
-    <div class="modal__backdrop" onclick="cerrarTodosLosModales()"></div>
-    <div class="modal__dialog">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card__title" style="font-size: 1.1rem;">🔍 Revisar Propuesta</h3>
-        <button onclick="cerrarTodosLosModales()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem;">✕</button>
-      </header>
-
-      <form id="form-revisar-propuesta" class="card__body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <input type="hidden" id="rp-task-id">
-
-        <div class="modal-info-grid">
-          <p><strong>Curso:</strong> <span id="rp-info-curso">-</span></p>
-          <p><strong>Solicitante:</strong> <span id="rp-info-solicitante">-</span></p>
-          <p><strong>Propuesta:</strong> <span id="rp-info-propuesta">-</span></p>
-          <p><strong>Modalidad:</strong> <span id="rp-info-modalidad">-</span></p>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label form-label--required">Dictamen de Revisión</label>
-          <div style="display: flex; gap: 1rem; margin-top: 0.25rem; flex-wrap: wrap;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); flex: 1;">
-              <input type="radio" name="rp-decision" value="aprobar" checked>
-              <span style="color: var(--color-success);">✔ Aprobar propuesta</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); flex: 1;">
-              <input type="radio" name="rp-decision" value="modificar">
-              <span style="color: var(--color-warning, #d97706);">✏ Solicitar modificaciones</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); flex: 1;">
-              <input type="radio" name="rp-decision" value="rechazar">
-              <span style="color: var(--color-danger);">✕ Rechazar propuesta</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="rp-observaciones" class="form-label form-label--required">Fundamento / Informe de revisión</label>
-          <textarea id="rp-observaciones" class="form-textarea" rows="4"
-            placeholder="Detalle los motivos del dictamen, aspectos a corregir o justificación de rechazo..." required></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarTodosLosModales()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-rp" class="btn btn--primary">Enviar Revisión →</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════
-       MODAL 3 — Evaluar Recursos
-       ════════════════════════════════════════════════════════════ -->
-  <div id="modal-evaluar-recursos" class="modal">
-    <div class="modal__backdrop" onclick="cerrarTodosLosModales()"></div>
-    <div class="modal__dialog modal__dialog--lg">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card__title" style="font-size: 1.1rem;">🏗️ Evaluar Recursos Necesarios</h3>
-        <button onclick="cerrarTodosLosModales()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem;">✕</button>
-      </header>
-
-      <form id="form-evaluar-recursos" class="card__body" style="display: flex; flex-direction: column; gap: 1.2rem;">
-        <input type="hidden" id="er-task-id">
-
-        <div class="modal-info-grid">
-          <p><strong>Curso:</strong> <span id="er-info-curso">-</span></p>
-          <p><strong>Modalidad:</strong> <span id="er-info-modalidad">-</span></p>
-          <p><strong>Duración:</strong> <span id="er-info-duracion">-</span></p>
-          <p><strong>Cupo máximo:</strong> <span id="er-info-cupo">-</span></p>
-        </div>
-
-        <!-- Checkboxes de recursos -->
-        <div class="form-group">
-          <label class="form-label form-label--required">Seleccione todos los recursos requeridos</label>
-          <p style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0 0 0.5rem;">Debe seleccionar al menos un recurso para continuar.</p>
-          <ul class="checklist" id="er-checklist">
-            <li class="checklist__item" onclick="toggleCheck(this)">
-              <input type="checkbox" name="er-recursos" value="aula_fisica" id="cb-aula-fisica">
-              <span class="item-icon">🏫</span>
-              <div>
-                <strong>Aula Física</strong>
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Reservar espacio físico para clases presenciales</div>
-              </div>
-            </li>
-            <li class="checklist__item" onclick="toggleCheck(this)">
-              <input type="checkbox" name="er-recursos" value="aula_virtual" id="cb-aula-virtual">
-              <span class="item-icon">💻</span>
-              <div>
-                <strong>Aula Virtual</strong>
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Configurar plataforma online (Zoom, Meet, Moodle...)</div>
-              </div>
-            </li>
-            <li class="checklist__item" onclick="toggleCheck(this)">
-              <input type="checkbox" name="er-recursos" value="materiales" id="cb-materiales">
-              <span class="item-icon">📚</span>
-              <div>
-                <strong>Materiales Didácticos</strong>
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Manuales, presentaciones, ejercicios prácticos</div>
-              </div>
-            </li>
-            <li class="checklist__item" onclick="toggleCheck(this)">
-              <input type="checkbox" name="er-recursos" value="equipamiento" id="cb-equipamiento">
-              <span class="item-icon">🖥️</span>
-              <div>
-                <strong>Equipamiento Técnico</strong>
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Proyectores, PCs, servidores u otro equipamiento especializado</div>
-              </div>
-            </li>
-            <li class="checklist__item" onclick="toggleCheck(this)">
-              <input type="checkbox" name="er-recursos" value="catering" id="cb-catering">
-              <span class="item-icon">☕</span>
-              <div>
-                <strong>Catering / Coffee break</strong>
-                <div style="font-size: 0.8rem; color: var(--color-text-muted);">Refrigerio para jornadas de más de 4 horas</div>
-              </div>
-            </li>
-          </ul>
-          <span id="er-validation-msg" class="checklist__validation-msg">⚠ Debe seleccionar al menos un recurso para completar esta tarea.</span>
-        </div>
-
-        <div class="form-group">
-          <label for="er-presupuesto" class="form-label">Presupuesto estimado (opcional)</label>
-          <input id="er-presupuesto" type="number" class="form-input" placeholder="$ 0.00" min="0" step="0.01">
-        </div>
-
-        <div class="form-group">
-          <label for="er-observaciones" class="form-label">Notas de evaluación</label>
-          <textarea id="er-observaciones" class="form-textarea" rows="2" placeholder="Consideraciones adicionales sobre la disponibilidad de recursos..."></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarTodosLosModales()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-er" class="btn btn--primary">Confirmar Recursos →</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════════════════════════════════════
-       MODAL 4 — Confeccionar Lista Definitiva
-       ════════════════════════════════════════════════════════════ -->
-  <div id="modal-lista-definitiva" class="modal">
-    <div class="modal__backdrop" onclick="cerrarTodosLosModales()"></div>
-    <div class="modal__dialog modal__dialog--lg">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card__title" style="font-size: 1.1rem;">📋 Confeccionar Lista Definitiva</h3>
-        <button onclick="cerrarTodosLosModales()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem;">✕</button>
-      </header>
-
-      <form id="form-lista-definitiva" class="card__body" style="display: flex; flex-direction: column; gap: 1.2rem;">
-        <input type="hidden" id="ld-task-id">
-
-        <div class="modal-info-grid">
-          <p><strong>Curso:</strong> <span id="ld-info-curso">-</span></p>
-          <p><strong>Cupo máximo:</strong> <span id="ld-info-cupo">-</span> participantes</p>
-          <p><strong>Empresa:</strong> <span id="ld-info-empresa">-</span></p>
-          <p><strong>Inscriptos actuales:</strong> <span id="ld-info-inscriptos">0</span></p>
-        </div>
-
-        <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <label class="form-label" style="margin: 0;">Lista de Participantes</label>
-            <button type="button" class="btn btn--secondary btn--sm" onclick="agregarParticipante()">+ Agregar participante</button>
-          </div>
-          <div id="ld-participant-list" class="participant-list">
-            <!-- filas dinámicas -->
-          </div>
-          <span id="ld-validation-msg" style="display:none; color: var(--color-danger); font-size:0.8rem; margin-top:0.3rem;">
-            ⚠ Ingrese al menos un participante con nombre y email.
-          </span>
-        </div>
-
-        <div class="form-group">
-          <label for="ld-observaciones" class="form-label">Observaciones de la nómina</label>
-          <textarea id="ld-observaciones" class="form-textarea" rows="2" placeholder="Ej: Se excluyeron participantes que ya realizaron el curso..."></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarTodosLosModales()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-ld" class="btn btn--success">Confirmar Lista Definitiva ✓</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL GENÉRICO (fallback para tareas sin modal específico) -->
-  <div id="modal-completar" class="modal">
-    <div class="modal__backdrop" onclick="cerrarTodosLosModales()"></div>
-    <div class="modal__dialog">
-      <header class="card__header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 id="modal-tarea-titulo" class="card__title" style="font-size: 1.15rem;">Revisión de Solicitud</h3>
-        <button onclick="cerrarTodosLosModales()" class="btn btn--secondary btn--sm" style="border: none; font-size: 1.2rem; cursor: pointer;">✕</button>
-      </header>
-
-      <form id="form-modal-completar" class="card__body" style="display: flex; flex-direction: column; gap: 1rem;">
-        <input type="hidden" id="modal-task-id">
-
-        <div style="background: #f8fafc; padding: 0.875rem; border-radius: var(--radius-md); font-size: 0.875rem;">
-          <p><strong>Curso:</strong> <span id="modal-info-curso">-</span></p>
-          <p><strong>Solicitante:</strong> <span id="modal-info-solicitante">-</span></p>
-          <p><strong>Cupo Estimado:</strong> <span id="modal-info-cupo">-</span></p>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label form-label--required">Dictamen Administrativo</label>
-          <div style="display: flex; gap: 1.5rem; margin-top: 0.25rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="decision" value="true" checked>
-              <strong style="color: var(--color-success);">Aprobar Curso</strong>
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-              <input type="radio" name="decision" value="false">
-              <strong style="color: var(--color-danger);">Rechazar Solicitud</strong>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="modal-observaciones" class="form-label">Informe / Observaciones para el Historial</label>
-          <textarea id="modal-observaciones" class="form-textarea" placeholder="Indique las justificaciones académicas o administrativas..." rows="3"></textarea>
-        </div>
-
-        <div class="card__footer" style="padding: 1rem 0 0 0; background: none;">
-          <button type="button" onclick="cerrarTodosLosModales()" class="btn btn--secondary">Cancelar</button>
-          <button type="submit" id="btn-confirmar-completar" class="btn btn--primary">
-            Confirmar Resolución
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>Gestión y Tecnologías de Procesos de Negocio • Motor Flowable BPM &amp; Spring Boot</p>
-  </footer>
-
-  <!-- SCRIPTS -->
   <script src="js/api.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     let tareas = [];
     let tareaActiva = null;
 
-    // ── Mapeo y detección de tipo de tarea ─────────────────────────
-    function obtenerTipoTarea(tarea) {
-      const key = (tarea.taskDefinitionKey || '').toLowerCase();
-      const name = (tarea.taskName || '').toLowerCase();
-
-      if (key.includes('elaborar') || name.includes('elaborar')) return 'ELABORAR_PROPUESTA';
-      if (key.includes('revisar') || name.includes('revisar')) return 'REVISAR_PROPUESTA';
-      if (key.includes('recurso') || name.includes('recurso')) return 'EVALUAR_RECURSOS';
-      if (key.includes('definitiva') || name.includes('definitiva')) return 'LISTA_DEFINITIVA';
-      return 'GENERICA';
+    // Crea elementos sin pasar por innerHTML: lo que venga de Flowable se muestra como texto.
+    function h(tag, attrs = {}, ...hijos) {
+      const el = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') el.className = v;
+        else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v);
+      }
+      el.append(...hijos);
+      return el;
     }
 
-    const TIPO_MODAL_MAP = {
-      'ELABORAR_PROPUESTA': 'modal-elaborar-propuesta',
-      'REVISAR_PROPUESTA':  'modal-revisar-propuesta',
-      'EVALUAR_RECURSOS':   'modal-evaluar-recursos',
-      'LISTA_DEFINITIVA':   'modal-lista-definitiva',
-      'GENERICA':           'modal-completar'
-    };
-
-    // ── Helpers de UI ──────────────────────────────────────────────
-    function cerrarTodosLosModales() {
-      document.querySelectorAll('.modal').forEach(m => m.classList.remove('modal--open'));
+    function fila(t) {
+      const v = t.variables || {};
+      return h('tr', {},
+        h('td', {}, t.taskName),
+        h('td', {}, v.nombreCurso || 'Sin título'),
+        h('td', { class: 'codigo' }, v.cursoId || '—'),
+        h('td', {}, v.emailSolicitante || '—'),
+        h('td', {}, t.createTime ? new Date(t.createTime).toLocaleDateString('es-AR') : 'Hoy'),
+        h('td', { class: 'acc' },
+          h('button', { type: 'button', class: 'enlace', onclick: () => reclamar(t.taskId) }, 'Reclamar'),
+          h('button', { type: 'button', class: 'boton chico', onclick: () => abrir(t) }, 'Revisar')
+        )
+      );
     }
-
-    function abrirModal(id) {
-      cerrarTodosLosModales();
-      document.getElementById(id).classList.add('modal--open');
-    }
-
-    // Toggle visual de checklist
-    function toggleCheck(li) {
-      const cb = li.querySelector('input[type="checkbox"]');
-      cb.checked = !cb.checked;
-      li.classList.toggle('checked', cb.checked);
-    }
-
-    // ── Inicialización ─────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-      const selectUsuario       = document.getElementById('select-usuario');
-      const btnRefrescar        = document.getElementById('btn-refrescar');
-      const badgeUsuarioActivo  = document.getElementById('badge-usuario-activo');
-
-      cargarTareas();
-
-      selectUsuario.addEventListener('change', () => {
-        badgeUsuarioActivo.textContent = selectUsuario.value;
-        cargarTareas();
-      });
-      btnRefrescar.addEventListener('click', cargarTareas);
-
-      // ── Form: Elaborar Propuesta ───────────────────────────────
-      document.getElementById('form-elaborar-propuesta').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btn-confirmar-ep');
-        const taskId = document.getElementById('ep-task-id').value;
-        try {
-          btn.disabled = true; btn.textContent = 'Enviando...';
-          await api.completarTarea(taskId, {
-            aprobado: true,
-            observaciones: document.getElementById('ep-descripcion').value,
-            variablesAdicionales: {
-              tituloPropuesta:    document.getElementById('ep-titulo').value,
-              modalidadPropuesta: document.getElementById('ep-modalidad').value,
-              duracionHoras:      document.getElementById('ep-duracion').value,
-              fechaInicioProp:    document.getElementById('ep-fecha-inicio').value,
-              descripcionCurso:   document.getElementById('ep-descripcion').value,
-              observacionesProp:  document.getElementById('ep-observaciones').value,
-              fechaResolucion:    new Date().toISOString(),
-            }
-          });
-          showToast('Propuesta registrada y enviada al proceso BPM.', 'success');
-          cerrarTodosLosModales();
-          cargarTareas();
-        } catch (err) {
-          showToast(err.message, 'error');
-        } finally {
-          btn.disabled = false; btn.textContent = 'Registrar Propuesta →';
-        }
-      });
-
-      // ── Form: Revisar Propuesta ────────────────────────────────
-      document.getElementById('form-revisar-propuesta').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btn-confirmar-rp');
-        const taskId = document.getElementById('rp-task-id').value;
-        const decision = document.querySelector('input[name="rp-decision"]:checked').value;
-        const obs = document.getElementById('rp-observaciones').value.trim();
-        if (!obs) { showToast('Debe ingresar el fundamento de la revisión.', 'error'); return; }
-        try {
-          btn.disabled = true; btn.textContent = 'Enviando...';
-          await api.completarTarea(taskId, {
-            aprobado: decision === 'aprobar',
-            observaciones: obs,
-            variablesAdicionales: {
-              decisionRevision: decision,
-              fechaResolucion:  new Date().toISOString(),
-            }
-          });
-          showToast(`Revisión enviada: ${decision === 'aprobar' ? 'Propuesta aprobada ✔' : decision === 'modificar' ? 'Modificaciones solicitadas ✏' : 'Propuesta rechazada ✕'}`, 'success');
-          cerrarTodosLosModales();
-          cargarTareas();
-        } catch (err) {
-          showToast(err.message, 'error');
-        } finally {
-          btn.disabled = false; btn.textContent = 'Enviar Revisión →';
-        }
-      });
-
-      // ── Form: Evaluar Recursos ─────────────────────────────────
-      document.getElementById('form-evaluar-recursos').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const recursosSeleccionados = [...document.querySelectorAll('input[name="er-recursos"]:checked')]
-          .map(cb => cb.value);
-
-        const validationMsg = document.getElementById('er-validation-msg');
-        if (recursosSeleccionados.length === 0) {
-          validationMsg.classList.add('visible');
-          return;
-        }
-        validationMsg.classList.remove('visible');
-
-        const btn = document.getElementById('btn-confirmar-er');
-        const taskId = document.getElementById('er-task-id').value;
-        try {
-          btn.disabled = true; btn.textContent = 'Enviando...';
-          await api.completarTarea(taskId, {
-            aprobado: true,
-            observaciones: document.getElementById('er-observaciones').value || 'Recursos evaluados y seleccionados.',
-            variablesAdicionales: {
-              recursosNecesarios:    recursosSeleccionados.join(','),
-              requiereAulaFisica:    recursosSeleccionados.includes('aula_fisica'),
-              requiereAulaVirtual:   recursosSeleccionados.includes('aula_virtual'),
-              requiereMateriales:    recursosSeleccionados.includes('materiales'),
-              requiereEquipamiento:  recursosSeleccionados.includes('equipamiento'),
-              presupuestoEstimado:   document.getElementById('er-presupuesto').value || '0',
-              fechaResolucion:       new Date().toISOString(),
-            }
-          });
-          showToast(`Recursos confirmados: ${recursosSeleccionados.length} ítem(s) seleccionado(s).`, 'success');
-          cerrarTodosLosModales();
-          cargarTareas();
-        } catch (err) {
-          showToast(err.message, 'error');
-        } finally {
-          btn.disabled = false; btn.textContent = 'Confirmar Recursos →';
-        }
-      });
-
-      // ── Form: Lista Definitiva ─────────────────────────────────
-      document.getElementById('form-lista-definitiva').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const filas = document.querySelectorAll('.ld-row');
-        const participantes = [];
-        filas.forEach(row => {
-          const nombre = row.querySelector('.ld-nombre').value.trim();
-          const email  = row.querySelector('.ld-email').value.trim();
-          if (nombre && email) participantes.push({ nombre, email });
-        });
-
-        const valMsg = document.getElementById('ld-validation-msg');
-        if (participantes.length === 0) {
-          valMsg.style.display = 'block';
-          return;
-        }
-        valMsg.style.display = 'none';
-
-        const btn = document.getElementById('btn-confirmar-ld');
-        const taskId = document.getElementById('ld-task-id').value;
-        try {
-          btn.disabled = true; btn.textContent = 'Guardando...';
-          await api.completarTarea(taskId, {
-            aprobado: true,
-            observaciones: document.getElementById('ld-observaciones').value || 'Lista definitiva confeccionada.',
-            variablesAdicionales: {
-              listaParticipantes:    JSON.stringify(participantes),
-              cantidadParticipantes: participantes.length,
-              fechaResolucion:       new Date().toISOString(),
-            }
-          });
-          showToast(`Lista definitiva guardada con ${participantes.length} participante(s).`, 'success');
-          cerrarTodosLosModales();
-          cargarTareas();
-        } catch (err) {
-          showToast(err.message, 'error');
-        } finally {
-          btn.disabled = false; btn.textContent = 'Confirmar Lista Definitiva ✓';
-        }
-      });
-
-      // ── Form: Modal genérico ───────────────────────────────────
-      document.getElementById('form-modal-completar').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const taskId      = document.getElementById('modal-task-id').value;
-        const aprobado    = document.querySelector('input[name="decision"]:checked').value === 'true';
-        const observaciones = document.getElementById('modal-observaciones').value.trim();
-        const btn         = document.getElementById('btn-confirmar-completar');
-        try {
-          btn.disabled = true; btn.textContent = 'Enviando a Flowable...';
-          await api.completarTarea(taskId, {
-            aprobado,
-            observaciones: observaciones || (aprobado ? 'Aprobado sin observaciones' : 'Rechazado por dictamen administrativo'),
-            variablesAdicionales: { fechaResolucion: new Date().toISOString() }
-          });
-          showToast('Tarea completada exitosamente. Proceso actualizado.', 'success');
-          cerrarTodosLosModales();
-          cargarTareas();
-        } catch (error) {
-          showToast(error.message, 'error');
-        } finally {
-          btn.disabled = false; btn.textContent = 'Confirmar Resolución';
-        }
-      });
-
-      // Cerrar modal con Escape
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') cerrarTodosLosModales();
-      });
-
-      // Iniciar con 1 fila en lista definitiva
-      agregarParticipante();
-    });
-
-    // ── Cargar tareas ──────────────────────────────────────────────
-    async function cargarTareas() {
-      const usuario       = document.getElementById('select-usuario').value;
-      const loader        = document.getElementById('loader');
-      const emptyState    = document.getElementById('empty-state');
-      const container     = document.getElementById('tasks-container');
-      const statPendientes = document.getElementById('stat-pendientes');
-
-      loader.style.display = 'block';
-      emptyState.style.display = 'none';
-      container.style.display = 'none';
-      container.innerHTML = '';
 
     async function cargar() {
       $('cargando').hidden = false;
       $('vacio').hidden = true;
       $('tabla').hidden = true;
       try {
-        tareasActuales = await api.obtenerTareasPendientes(usuario);
-        statPendientes.textContent = tareasActuales.length;
-        loader.style.display = 'none';
-
-        if (tareasActuales.length === 0) {
-          emptyState.style.display = 'block';
-        } else {
-          container.style.display = 'grid';
-          tareasActuales.forEach(tarea => container.appendChild(crearElementoTarea(tarea, usuario)));
-        }
+        tareas = await api.obtenerTareasPendientes($('operador').value);
+        $('pendientes').textContent = tareas.length;
+        $('cargando').hidden = true;
+        if (!tareas.length) { $('vacio').hidden = false; return; }
+        $('filas').replaceChildren(...tareas.map(fila));
+        $('tabla').hidden = false;
       } catch (err) {
-        loader.style.display = 'none';
+        $('cargando').hidden = true;
+        console.error(err);
         showToast(err.message, 'error');
       }
     }
 
-    // ── Crear card de tarea ────────────────────────────────────────
-    function crearElementoTarea(tarea, usuarioActual) {
-      const card = document.createElement('article');
-      card.className = 'task-item';
-
-      const vars         = tarea.variables || {};
-      const cursoNombre  = vars.nombreCurso   || 'Curso sin título';
-      const cursoId      = vars.cursoId       || 'ID Desconocido';
-      const solicitante  = vars.emailSolicitante || 'No especificado';
-      const fechaCreacion = tarea.createTime ? new Date(tarea.createTime).toLocaleDateString() : 'Hoy';
-
-      // Badge y tipo de tarea
-      const tipo = obtenerTipoTarea(tarea);
-      const badgeLabel = {
-        'ELABORAR_PROPUESTA': 'ELABORAR PROPUESTA',
-        'REVISAR_PROPUESTA':  'REVISAR PROPUESTA',
-        'EVALUAR_RECURSOS':   'EVALUAR RECURSOS',
-        'LISTA_DEFINITIVA':   'LISTA DEFINITIVA',
-      }[tipo] || 'TAREA BPM';
-
-      const badgeColor = {
-        'ELABORAR_PROPUESTA': 'badge--progress',
-        'REVISAR_PROPUESTA':  'badge--pending',
-        'EVALUAR_RECURSOS':   'badge--pending',
-        'LISTA_DEFINITIVA':   'badge--success',
-      }[tipo] || 'badge--pending';
-
-      card.innerHTML = `
-        <div>
-          <div class="task-item__header">
-            <span class="badge ${badgeColor}">${badgeLabel}</span>
-            <small style="color: var(--color-text-muted); font-size: 0.75rem;">${fechaCreacion}</small>
-          </div>
-          <h3 class="task-item__title" style="margin-top: 0.5rem;">${tarea.taskName}</h3>
-          <div class="task-item__details" style="margin-top: 0.5rem;">
-            <p><strong>Curso:</strong> ${cursoNombre}</p>
-            <p><strong>Código:</strong> ${cursoId}</p>
-            <p><strong>Solicitante:</strong> ${solicitante}</p>
-          </div>
-        </div>
-
-        <div class="task-item__actions">
-          <button class="btn btn--secondary btn--sm" onclick="reclamarTarea('${tarea.taskId}', '${usuarioActual}')" title="Asignar explícitamente a este usuario">
-            Reclamar
-          </button>
-          <button class="btn btn--primary btn--sm" onclick="abrirModalCompletar('${tarea.taskId}')">
-            Revisar &amp; Completar →
-          </button>
-        </div>
-      `;
-      return card;
-    }
-
-    // ── Reclamar tarea ─────────────────────────────────────────────
-    async function reclamarTarea(taskId, usuario) {
+    async function reclamar(taskId) {
+      const usuario = $('operador').value;
       try {
         await api.reclamarTarea(taskId, usuario);
         showToast(`Tarea reclamada por ${usuario}`, 'success');
@@ -778,91 +142,44 @@
       }
     }
 
-    // ── Abrir modal específico según tipo de tarea ─────────────────
-    function abrirModalCompletar(taskId) {
-      const tarea = tareasActuales.find(t => t.taskId === taskId);
-      if (!tarea) return;
+    function abrir(t) {
+      const v = t.variables || {};
+      tareaActiva = t;
+      $('rev-titulo').textContent = t.taskName;
+      $('rev-curso').textContent = v.nombreCurso || v.cursoId || '-';
+      $('rev-solicitante').textContent = v.emailSolicitante || '-';
+      $('rev-cupo').textContent = v.cupoMaximo ? `${v.cupoMaximo} participantes` : '-';
+      $('rev-obs').value = '';
+      $('revision').showModal();
+    }
 
-      const vars    = tarea.variables || {};
-      const tipo    = obtenerTipoTarea(tarea);
-      const modalId = TIPO_MODAL_MAP[tipo] || 'modal-completar';
-
-      // Rellena campos según el modal destino
-      switch (modalId) {
-        case 'modal-elaborar-propuesta':
-          document.getElementById('ep-task-id').value = taskId;
-          document.getElementById('ep-info-curso').textContent        = vars.nombreCurso || '-';
-          document.getElementById('ep-info-id').textContent           = vars.cursoId || '-';
-          document.getElementById('ep-info-solicitante').textContent  = vars.emailSolicitante || '-';
-          document.getElementById('ep-info-cupo').textContent         = (vars.cupoMaximo || '-') + ' participantes';
-          document.getElementById('form-elaborar-propuesta').reset();
-          document.getElementById('ep-task-id').value = taskId; // re-set after reset
-          break;
-
-        case 'modal-revisar-propuesta':
-          document.getElementById('rp-task-id').value = taskId;
-          document.getElementById('rp-info-curso').textContent       = vars.nombreCurso || '-';
-          document.getElementById('rp-info-solicitante').textContent = vars.emailSolicitante || '-';
-          document.getElementById('rp-info-propuesta').textContent   = vars.tituloPropuesta || 'Sin título';
-          document.getElementById('rp-info-modalidad').textContent   = vars.modalidadPropuesta || '-';
-          document.getElementById('rp-observaciones').value = '';
-          document.querySelector('input[name="rp-decision"][value="aprobar"]').checked = true;
-          break;
-
-        case 'modal-evaluar-recursos':
-          document.getElementById('er-task-id').value = taskId;
-          document.getElementById('er-info-curso').textContent     = vars.nombreCurso || '-';
-          document.getElementById('er-info-modalidad').textContent = vars.modalidadPropuesta || '-';
-          document.getElementById('er-info-duracion').textContent  = vars.duracionHoras ? vars.duracionHoras + 'h' : '-';
-          document.getElementById('er-info-cupo').textContent      = vars.cupoMaximo || '-';
-          // Limpiar checkboxes
-          document.querySelectorAll('input[name="er-recursos"]').forEach(cb => {
-            cb.checked = false;
-            cb.closest('.checklist__item').classList.remove('checked');
-          });
-          document.getElementById('er-presupuesto').value = '';
-          document.getElementById('er-observaciones').value = '';
-          document.getElementById('er-validation-msg').classList.remove('visible');
-          break;
-
-        case 'modal-lista-definitiva':
-          document.getElementById('ld-task-id').value = taskId;
-          document.getElementById('ld-info-curso').textContent      = vars.nombreCurso || '-';
-          document.getElementById('ld-info-cupo').textContent       = vars.cupoMaximo || '-';
-          document.getElementById('ld-info-empresa').textContent    = vars.emailSolicitante || '-';
-          document.getElementById('ld-info-inscriptos').textContent = vars.cantidadInscriptos || '0';
-          document.getElementById('ld-participant-list').innerHTML  = '';
-          document.getElementById('ld-observaciones').value         = '';
-          document.getElementById('ld-validation-msg').style.display = 'none';
-          agregarParticipante();
-          break;
-
-        default: // modal genérico
-          document.getElementById('modal-task-id').value = taskId;
-          document.getElementById('modal-tarea-titulo').textContent   = `${tarea.taskName} (${tarea.taskId.substring(0, 8)}...)`;
-          document.getElementById('modal-info-curso').textContent     = vars.nombreCurso || vars.cursoId || '-';
-          document.getElementById('modal-info-solicitante').textContent = vars.emailSolicitante || '-';
-          document.getElementById('modal-info-cupo').textContent      = (vars.cupoMaximo || '-') + ' participantes';
-          document.getElementById('modal-observaciones').value        = '';
-          break;
+    $('form-revision').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const aprobado = e.submitter.value === 'aprobar';
+      const botones = e.target.querySelectorAll('button');
+      botones.forEach((b) => { b.disabled = true; });
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado,
+          observaciones: $('rev-obs').value.trim() ||
+            (aprobado ? 'Aprobado sin observaciones' : 'Rechazado por dictamen administrativo'),
+          variablesAdicionales: { fechaResolucion: new Date().toISOString() }
+        });
+        showToast(aprobado ? 'Curso aprobado' : 'Solicitud rechazada', 'success');
+        $('revision').close();
+        cargar();
+      } catch (err) {
+        console.error(err);
+        showToast(err.message, 'error');
+      } finally {
+        botones.forEach((b) => { b.disabled = false; });
       }
+    });
 
-      abrirModal(modalId);
-    }
-
-    // ── Lista definitiva: agregar/quitar fila de participante ──────
-    function agregarParticipante() {
-      const list = document.getElementById('ld-participant-list');
-      const row = document.createElement('div');
-      row.className = 'participant-row ld-row';
-      row.innerHTML = `
-        <input type="text"  class="form-input ld-nombre" placeholder="Nombre completo" style="flex:2">
-        <input type="email" class="form-input ld-email"  placeholder="email@empresa.com" style="flex:2">
-        <button type="button" class="btn--icon" onclick="this.closest('.ld-row').remove()" title="Eliminar">🗑</button>
-      `;
-      list.appendChild(row);
-      document.getElementById('ld-info-inscriptos').textContent = list.querySelectorAll('.ld-row').length;
-    }
+    $('rev-cancelar').addEventListener('click', () => $('revision').close());
+    $('operador').addEventListener('change', cargar);
+    $('btn-actualizar').addEventListener('click', cargar);
+    cargar();
   </script>
 </body>
 </html>

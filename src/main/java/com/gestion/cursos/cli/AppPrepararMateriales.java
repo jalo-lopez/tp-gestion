@@ -9,19 +9,21 @@ import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.history.HistoricTaskInstance;
 
+import javax.swing.*;
+import java.awt.GraphicsEnvironment;
 import java.util.*;
 
 /**
- * Aplicación de consola auxiliar (App Auxiliar 1) que interactúa directamente
- * con el motor Flowable mediante su API Java pura (TaskService y HistoryService)
- * conectando a la base de datos (PostgreSQL/Supabase o H2).
+ * Aplicación Auxiliar 1: Preparación de Materiales mediante la API Java de Flowable.
+ * Conexión directa a la BD del motor BPM local a la intranet.
  *
  * Cumple con:
- * - Sección 4.2.1: Consultar, reclamar y completar tareas de 'Preparar materiales' para Administración.
- * - Sección 4.3: Consultas históricas y métricas:
- *     1. Cantidad y porcentaje de instancias finalizadas por resultado.
- *     2. Duración promedio de las 3 ramas paralelas (inscripciones, materiales, recursos).
- *     3. Tareas completadas por integrante de administración y docentes.
+ * - Sección 4.2.1:
+ *     - Interfaz Gráfica (Swing) local a la intranet con alcance a la BD del motor Flowable.
+ *     - API Java de Flowable (TaskService, HistoryService, RuntimeService).
+ *     - Permite a un administrativo identificarse, consultar tareas 'Preparar materiales', reclamar y completar la tarea.
+ * - Modo fallback por consola (CLI) disponible mediante argumento '--cli' o en entornos headless.
+ * - Sección 4.3: Métricas y consultas históricas.
  */
 public class AppPrepararMateriales {
 
@@ -33,9 +35,17 @@ public class AppPrepararMateriales {
 
     public static void main(String[] args) {
         System.out.println("==================================================================");
-        System.out.println("   FLOWABLE BPM - APP AUXILIAR 1 (API JAVA PURA)");
-        System.out.println("   Preparación de Materiales & Métricas Históricas (Secc. 4.2.1 y 4.3)");
+        System.out.println("   FLOWABLE BPM - APP AUXILIAR 1 (API JAVA)");
+        System.out.println("   Preparación de Materiales & Métricas Históricas");
         System.out.println("==================================================================");
+
+        boolean forzarCli = false;
+        for (String arg : args) {
+            if ("--cli".equalsIgnoreCase(arg) || "-c".equalsIgnoreCase(arg) || "cli".equalsIgnoreCase(arg)) {
+                forzarCli = true;
+                break;
+            }
+        }
 
         String jdbcUrl = System.getenv().getOrDefault("SPRING_DATASOURCE_URL", DEFAULT_JDBC_URL);
         String jdbcUser = System.getenv().getOrDefault("SPRING_DATASOURCE_USERNAME", DEFAULT_JDBC_USER);
@@ -45,7 +55,6 @@ public class AppPrepararMateriales {
         System.out.println("Conectando al motor Flowable: " + jdbcUrl);
 
         ProcessEngine processEngine = null;
-        Scanner scanner = new Scanner(System.in);
 
         try {
             ProcessEngineConfiguration cfg = ProcessEngineConfiguration.createStandaloneProcessEngineConfiguration()
@@ -53,13 +62,61 @@ public class AppPrepararMateriales {
                     .setJdbcUsername(jdbcUser)
                     .setJdbcPassword(jdbcPassword)
                     .setJdbcDriver(jdbcDriver)
-                    .setDatabaseSchemaUpdate(ProcessEngineConfiguration.DB_SCHEMA_UPDATE_FALSE);
+                    .setDatabaseSchemaUpdate(ProcessEngineConfiguration.DB_SCHEMA_UPDATE_TRUE);
 
             processEngine = cfg.buildProcessEngine();
-            TaskService taskService = processEngine.getTaskService();
-            HistoryService historyService = processEngine.getHistoryService();
             System.out.println("[✓] Motor Flowable inicializado exitosamente.\n");
 
+            boolean esHeadless = GraphicsEnvironment.isHeadless();
+
+            if (!forzarCli && !esHeadless) {
+                // Modo Interfaz Gráfica (Swing) exigido por la Sección 4.2.1
+                System.out.println("[✓] Iniciando Interfaz Gráfica (GUI Swing - Sección 4.2.1)...");
+                try {
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                } catch (Exception ignored) {
+                }
+
+                final ProcessEngine engineParaGui = processEngine;
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        AppPrepararMaterialesGUI gui = new AppPrepararMaterialesGUI(engineParaGui);
+                        gui.setVisible(true);
+                    } catch (Exception e) {
+                        System.err.println("[✕] Error al inicializar interfaz gráfica: " + e.getMessage());
+                        e.printStackTrace();
+                        System.out.println("Iniciando modo consola de respaldo...");
+                        ejecutarConsola(engineParaGui);
+                    }
+                });
+            } else {
+                // Modo Consola CLI (fallback si es headless o si se pasa --cli)
+                if (esHeadless) {
+                    System.out.println("[!] Entorno headless detectado (sin servidor X/pantalla). Iniciando modo consola CLI.");
+                } else {
+                    System.out.println("[i] Modo CLI solicitado mediante parámetro.");
+                }
+                ejecutarConsola(processEngine);
+                if (processEngine != null) {
+                    processEngine.close();
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("\n[ERROR CRÍTICO] " + e.getMessage());
+            e.printStackTrace();
+            if (processEngine != null) {
+                processEngine.close();
+            }
+        }
+    }
+
+    private static void ejecutarConsola(ProcessEngine processEngine) {
+        TaskService taskService = processEngine.getTaskService();
+        HistoryService historyService = processEngine.getHistoryService();
+        Scanner scanner = new Scanner(System.in);
+
+        try {
             while (true) {
                 System.out.println("==================================================================");
                 System.out.println("                    MENÚ PRINCIPAL (API JAVA)                     ");
@@ -88,14 +145,7 @@ public class AppPrepararMateriales {
 
                 System.out.println();
             }
-
-        } catch (Exception e) {
-            System.err.println("\n[ERROR CRÍTICO] " + e.getMessage());
-            e.printStackTrace();
         } finally {
-            if (processEngine != null) {
-                processEngine.close();
-            }
             scanner.close();
         }
     }

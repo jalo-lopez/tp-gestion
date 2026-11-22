@@ -205,6 +205,11 @@ public class CursoProcesoController {
     // 3. TOGGLE DE DEMOSTRACIÓN ESCENARIO 7 (Falta de aula física)
     // =========================================================================
 
+    @GetMapping("/simulacion/toggle-falta-aula")
+    public ResponseEntity<ApiResponse<Boolean>> obtenerToggleFaltaAula() {
+        return ResponseEntity.ok(ApiResponse.exito("Estado de toggle falta de aula", cursoProcessService.isForzarFaltaAulaGlobal()));
+    }
+
     @PostMapping("/simulacion/toggle-falta-aula")
     public ResponseEntity<ApiResponse<Boolean>> toggleFaltaAula(
             @RequestParam("forzar") boolean forzar) {
