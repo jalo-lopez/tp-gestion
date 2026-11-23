@@ -2,14 +2,18 @@
 
 /**
  * ============================================================================
- * SIMULADOR DE ACCIONES DE LA EMPRESA (CLIENTE BPM INTERACTIVO)
+ * SIMULADOR DE COMUNICACIONES DE LA EMPRESA (API REST - Sección 4.2.2)
  * ============================================================================
- * Permite seleccionar una instancia activa de Flowable o iniciar una nueva
- * automáticamente, y simular las 4 decisiones empresariales:
- * 1) Aceptar propuesta
- * 2) Rechazar
- * 3) Pedir modificaciones
- * 4) Cancelar
+ * Cumple con los requerimientos de la Sección 4.2.2:
+ * 1. Seleccionar una solicitud/instancia activa de Flowable o crear una nueva.
+ * 2. Consultar y mostrar ÚNICAMENTE las comunicaciones habilitadas en el estado actual.
+ * 3. Enviar las 5 comunicaciones de negocio mediante la API REST:
+ *    - [1] Aceptación de la propuesta (con fecha acordada)
+ *    - [2] Rechazo de la propuesta (con motivo)
+ *    - [3] Solicitud de modificaciones (con observaciones)
+ *    - [4] Envío de nómina de participantes (avanza rama de inscripciones)
+ *    - [5] Cancelación durante la preparación (interrumpe y dispara compensaciones)
+ * 4. Alternar simulación del Escenario 7 (Falta de aulas disponibles).
  * ============================================================================
  */
 
@@ -33,30 +37,58 @@ const rl = readline.createInterface({ input, output });
 async function main() {
   console.clear();
   console.log(`${colors.cyan}${colors.bold}====================================================================${colors.reset}`);
-  console.log(`${colors.cyan}${colors.bold}   FLOWABLE BPM - SIMULADOR INTERACTIVO DE DECISIONES DE EMPRESA    ${colors.reset}`);
+  console.log(`${colors.cyan}${colors.bold}   FLOWABLE BPM - SIMULADOR DE COMUNICACIONES REST (Sección 4.2.2)  ${colors.reset}`);
   console.log(`${colors.cyan}${colors.bold}====================================================================${colors.reset}`);
-  console.log(`${colors.gray}Backend destino: ${DEFAULT_BASE_URL}${colors.reset}\n`);
+  console.log(`${colors.gray}Destino API REST: ${DEFAULT_BASE_URL}${colors.reset}\n`);
 
   try {
     while (true) {
-      // 1. Obtener o seleccionar el ID de instancia de proceso
+      // 1. Seleccionar o crear instancia de proceso
       const processInstanceId = await seleccionarOIniciarInstancia();
       if (!processInstanceId) break;
 
-      // 2. Buscar tareas activas para esta instancia
-      const tarea = await obtenerTareaActiva(processInstanceId);
-      if (!tarea) {
-        console.log(`\n${colors.yellow}[!] La instancia [${processInstanceId}] no tiene tareas pendientes activas (puede haber concluido o estar en un evento final).${colors.reset}`);
-        const reintentar = await rl.question(`${colors.bold}¿Desea seleccionar otra instancia? (s/n): ${colors.reset}`);
-        if (reintentar.toLowerCase() !== 's') break;
-        continue;
-      }
+      // 2. Gestionar comunicaciones sobre la instancia seleccionada
+      let enMismaInstancia = true;
+      while (enMismaInstancia) {
+        // Consultar estado en la base institucional
+        await mostrarEstadoInstancia(processInstanceId);
 
-      // 3. Menú interactivo de opciones empresariales
-      let continuarConMismaInstancia = true;
-      while (continuarConMismaInstancia) {
-        mostrarMenu(processInstanceId, tarea);
-        const opcion = (await rl.question(`${colors.bold}Seleccione una opción (1-4, 5 para cambiar de instancia, 0 para salir): ${colors.reset}`)).trim();
+        // Consultar comunicaciones habilitadas desde el backend
+        const habilitadas = await consultarComunicacionesHabilitadas(processInstanceId);
+
+        console.log(`\n${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
+        console.log(`${colors.bold}COMUNICACIONES DE EMPRESA HABILITADAS EN EL ESTADO ACTUAL:${colors.reset}`);
+        
+        if (habilitadas.length === 0) {
+          console.log(`  ${colors.yellow}[!] Ninguna comunicación empresarial activa en este momento.${colors.reset}`);
+          console.log(`      ${colors.gray}(El proceso está en manos de Administración o Docentes)${colors.reset}`);
+        } else {
+          if (habilitadas.includes('ACEPTAR_PROPUESTA')) {
+            console.log(`  ${colors.green}[1] Aceptar propuesta${colors.reset}           -> Acuerda fecha y pasa a Preparación`);
+          }
+          if (habilitadas.includes('RECHAZAR_PROPUESTA')) {
+            console.log(`  ${colors.red}[2] Rechazar propuesta${colors.reset}          -> Desestima la capacitación y archiva`);
+          }
+          if (habilitadas.includes('SOLICITAR_MODIFICACIONES')) {
+            console.log(`  ${colors.yellow}[3] Solicitar modificaciones${colors.reset}    -> Pide ajustes de cronograma/temario`);
+          }
+          if (habilitadas.includes('ENVIAR_NOMINA')) {
+            console.log(`  ${colors.cyan}[4] Enviar nómina de inscriptos${colors.reset} -> Envía participantes y habilita lista definitiva`);
+          }
+          if (habilitadas.includes('CANCELAR_PREPARACION')) {
+            console.log(`  ${colors.magenta}[5] Cancelar preparación${colors.reset}        -> Interrumpe y ejecuta compensaciones`);
+          }
+        }
+
+        console.log(`${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
+        console.log(`  ${colors.bold}[T] Ver tareas activas de la institución${colors.reset}`);
+        console.log(`  ${colors.bold}[A] Avanzar temporizador activo (Simular paso de 5 días - Escenario 4)${colors.reset}`);
+        console.log(`  ${colors.bold}[F] Alternar simulación de falta de aulas (Escenario 7)${colors.reset}`);
+        console.log(`  ${colors.bold}[V] Volver / Cambiar de curso${colors.reset}`);
+        console.log(`  [0] Salir`);
+        console.log(`${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
+
+        const opcion = (await rl.question(`${colors.bold}Seleccione una opción: ${colors.reset}`)).trim().toUpperCase();
 
         if (opcion === '0') {
           console.log(`\n${colors.cyan}Saliendo del simulador. ¡Hasta luego!${colors.reset}`);
@@ -64,29 +96,33 @@ async function main() {
           return;
         }
 
-        if (opcion === '5') {
-          continuarConMismaInstancia = false;
+        if (opcion === 'V') {
+          enMismaInstancia = false;
           break;
         }
 
-        const payload = await generarPayloadPorOpcion(opcion);
-        if (!payload) {
-          console.log(`${colors.red}[✕] Opción inválida. Intente nuevamente.${colors.reset}\n`);
+        if (opcion === 'T') {
+          await consultarTareasInstancia(processInstanceId);
+          await rl.question(`\n${colors.bold}Presione ENTER para continuar...${colors.reset}`);
           continue;
         }
 
-        // 4. Enviar payload al backend Spring Boot / Flowable
-        console.log(`\n${colors.yellow}>>> Enviando decisión empresarial a Flowable...${colors.reset}`);
-        console.log(`${colors.gray}Payload JSON:${colors.reset}`, JSON.stringify(payload, null, 2));
-
-        const exito = await enviarDecision(tarea.taskId, payload);
-        if (exito) {
-          console.log(`\n${colors.green}${colors.bold}[✓] ¡Decisión registrada con éxito en Flowable BPM!${colors.reset}`);
-          console.log(`${colors.gray}La tarea [${tarea.taskId}] fue completada y el flujo BPM continuó su ejecución.${colors.reset}\n`);
-          continuarConMismaInstancia = false; // Tarea finalizada, volvemos a listar instancias
+        if (opcion === 'A') {
+          await avanzarTemporizador(processInstanceId);
+          await rl.question(`\n${colors.bold}Presione ENTER para continuar...${colors.reset}`);
+          continue;
         }
 
-        await rl.question(`${colors.bold}Presione ENTER para continuar...${colors.reset}`);
+        if (opcion === 'F') {
+          await alternarFaltaAulas();
+          await rl.question(`\n${colors.bold}Presione ENTER para continuar...${colors.reset}`);
+          continue;
+        }
+
+        // Ejecutar comunicación seleccionada
+        await procesarComunicacion(opcion, habilitadas, processInstanceId);
+        await new Promise(r => setTimeout(r, 600)); // Pausa breve para propagación BPMN
+        await rl.question(`\n${colors.bold}Presione ENTER para continuar...${colors.reset}`);
       }
     }
   } catch (error) {
@@ -97,239 +133,266 @@ async function main() {
 }
 
 /**
- * Consulta las instancias activas disponibles y permite al usuario elegir una,
- * ingresar un ID manualmente o crear una nueva automáticamente.
+ * Consulta y lista instancias activas o permite crear una nueva de prueba
  */
 async function seleccionarOIniciarInstancia() {
   console.log(`\n${colors.bold}Consultando instancias de proceso activas en el servidor...${colors.reset}`);
 
-  let instanciasActivas = [];
+  let instancias = [];
   try {
     const res = await fetch(`${DEFAULT_BASE_URL}/instancias/activas`);
     if (res.ok) {
       const json = await res.json();
-      instanciasActivas = json.datos || [];
+      instancias = json.datos || [];
     }
   } catch (e) {
-    console.log(`${colors.red}[!] No se pudo conectar con el servidor en ${DEFAULT_BASE_URL}.${colors.reset}`);
-    console.log(`${colors.yellow}Asegúrese de haber iniciado el backend con 'mvn spring-boot:run' en otra terminal.${colors.reset}\n`);
+    console.log(`${colors.red}[!] No se pudo conectar con el backend en ${DEFAULT_BASE_URL}.${colors.reset}`);
+    console.log(`${colors.yellow}Asegúrese de haber iniciado la aplicación con 'mvn spring-boot:run'.${colors.reset}\n`);
+    return null;
   }
 
-  if (instanciasActivas.length > 0) {
-    console.log(`\n${colors.green}${colors.bold}Instancias activas encontradas en el motor:${colors.reset}`);
-    instanciasActivas.forEach((inst, index) => {
-      console.log(`  ${colors.bold}[${index + 1}]${colors.reset} Código: ${colors.cyan}${inst.businessKey || 'S/C'}${colors.reset} | ID Flowable: ${colors.yellow}${inst.processInstanceId}${colors.reset}`);
+  if (instancias.length > 0) {
+    console.log(`\n${colors.green}${colors.bold}Instancias activas disponibles:${colors.reset}`);
+    instancias.forEach((inst, index) => {
+      console.log(`  [${index + 1}] ID: ${colors.cyan}${inst.processInstanceId}${colors.reset} | Curso: ${inst.businessKey || 'S/D'}`);
     });
-    console.log(`  ${colors.bold}[N]${colors.reset} Iniciar una ${colors.green}NUEVA${colors.reset} solicitud de curso automáticamente`);
-    console.log(`  ${colors.gray}O pegue directamente un ID de instancia UUID${colors.reset}`);
-
-    const seleccion = (await rl.question(`\n${colors.bold}Seleccione un número, 'N' para crear una nueva o pegue un ID: ${colors.reset}`)).trim();
-    if (!seleccion || seleccion.toLowerCase() === 'salir') return null;
-
-    if (seleccion.toUpperCase() === 'N') {
-      return await crearNuevaInstanciaAutomatica();
-    }
-
-    const num = parseInt(seleccion, 10);
-    if (!isNaN(num) && num >= 1 && num <= instanciasActivas.length) {
-      return instanciasActivas[num - 1].processInstanceId;
-    }
-
-    return seleccion; // Si pegó un UUID directamente
   } else {
-    console.log(`\n${colors.yellow}[!] Actualmente no hay instancias de procesos activas en el motor Flowable.${colors.reset}`);
-    console.log(`${colors.bold}¿Desea iniciar una NUEVA solicitud de capacitación ahora mismo?${colors.reset}`);
-    const respuesta = (await rl.question(`${colors.cyan}[S/n] (o pegue un ID): ${colors.reset}`)).trim();
-
-    if (!respuesta || respuesta.toLowerCase() === 's') {
-      return await crearNuevaInstanciaAutomatica();
-    } else if (respuesta.toLowerCase() === 'n' || respuesta.toLowerCase() === 'salir') {
-      return null;
-    }
-
-    return respuesta; // Si pegó un UUID directamente
+    console.log(`\n${colors.yellow}No hay instancias activas actualmente.${colors.reset}`);
   }
-}
 
-/**
- * Inicia una nueva solicitud de curso de prueba en Spring Boot / Flowable
- */
-async function crearNuevaInstanciaAutomatica() {
-  const randomCode = 'CURSO-CLI-' + Math.floor(1000 + Math.random() * 9000);
-  console.log(`\n${colors.cyan}Iniciando nueva instancia de prueba con código [${randomCode}]...${colors.reset}`);
-
-  try {
-    const payload = {
-      cursoId: randomCode,
-      nombreCurso: 'Capacitación en Automatización y BPMN 2.0',
-      categoria: 'Ingeniería y Procesos',
-      emailSolicitante: 'empresa.demo@corporativo.com',
-      cupoMaximo: 20,
-      descripcion: 'Instancia generada automáticamente desde el simulador de consola.'
-    };
-
-    const res = await fetch(`${DEFAULT_BASE_URL}/iniciar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.mensaje || 'Error al iniciar instancia');
-
-    const nuevaInstanciaId = json.datos.processInstanceId;
-    console.log(`${colors.green}[✓] ¡Instancia creada exitosamente!${colors.reset}`);
-    console.log(`    Código (BusinessKey): ${colors.bold}${json.datos.businessKey}${colors.reset}`);
-    console.log(`    ID de Instancia Flowable: ${colors.yellow}${nuevaInstanciaId}${colors.reset}`);
-
-    return nuevaInstanciaId;
-  } catch (err) {
-    console.error(`${colors.red}[✕] Error al crear instancia: ${err.message}${colors.reset}`);
-    return null;
-  }
-}
-
-/**
- * Consulta la API REST para obtener las tareas activas de la instancia
- */
-async function obtenerTareaActiva(processInstanceId) {
-  try {
-    const url = `${DEFAULT_BASE_URL}/instancias/${encodeURIComponent(processInstanceId)}/tareas`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const tareas = data.datos || [];
-    return tareas.length > 0 ? tareas[0] : null;
-  } catch (err) {
-    console.error(`${colors.red}Error conectando al backend: ${err.message}${colors.reset}`);
-    return null;
-  }
-}
-
-/**
- * Imprime el menú de opciones con formato visual
- */
-function mostrarMenu(processInstanceId, tarea) {
-  console.log(`\n${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
-  console.log(`${colors.bold}PROCESO FLOWABLE:${colors.reset} ${colors.cyan}${processInstanceId}${colors.reset}`);
-  console.log(`${colors.bold}TAREA ACTIVA:${colors.reset}     ${colors.yellow}${tarea.taskName} (ID: ${tarea.taskId})${colors.reset}`);
-  if (tarea.variables?.nombreCurso) {
-    console.log(`${colors.bold}CURSO:${colors.reset}            ${tarea.variables.nombreCurso}`);
-  }
-  console.log(`${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
-  console.log(`${colors.bold}ACCIONES DISPONIBLES DE LA EMPRESA:${colors.reset}`);
-  console.log(`  ${colors.green}[1] Aceptar propuesta${colors.reset}       -> Valida la propuesta formativa y aprueba el curso`);
-  console.log(`  ${colors.red}[2] Rechazar propuesta${colors.reset}      -> Desestima la capacitación y finaliza como Rechazado`);
-  console.log(`  ${colors.yellow}[3] Pedir modificaciones${colors.reset}    -> Solicita ajustes en fechas, temario o presupuesto`);
-  console.log(`  ${colors.magenta}[4] Cancelar solicitud${colors.reset}      -> Cancela voluntariamente el proceso`);
-  console.log(`  ${colors.cyan}[5] Cambiar de instancia${colors.reset}`);
+  console.log(`\n  [N] Iniciar un nuevo curso de prueba automáticamente`);
+  console.log(`  [M] Ingresar ID de instancia manualmente`);
   console.log(`  [0] Salir`);
-  console.log(`${colors.magenta}${colors.bold}--------------------------------------------------------------------${colors.reset}`);
+
+  const resp = (await rl.question(`\n${colors.bold}Seleccione una opción: ${colors.reset}`)).trim();
+
+  if (resp === '0') return null;
+
+  if (resp.toUpperCase() === 'N') {
+    return await crearNuevaInstanciaAutomatica();
+  }
+
+  if (resp.toUpperCase() === 'M') {
+    return (await rl.question(`${colors.bold}Ingrese el ID de la instancia de proceso: ${colors.reset}`)).trim();
+  }
+
+  const num = parseInt(resp, 10);
+  if (!isNaN(num) && num >= 1 && num <= instancias.length) {
+    return instancias[num - 1].processInstanceId;
+  }
+
+  console.log(`${colors.red}Opción inválida.${colors.reset}`);
+  return null;
 }
 
 /**
- * Construye el payload JSON de acuerdo a la acción empresarial seleccionada
+ * Consulta comunicaciones habilitadas para la instancia
  */
-async function generarPayloadPorOpcion(opcion) {
-  const timestamp = new Date().toISOString();
+async function consultarComunicacionesHabilitadas(processInstanceId) {
+  try {
+    const res = await fetch(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicaciones-habilitadas`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.datos || [];
+    }
+  } catch (e) {
+    console.error(`Error al consultar comunicaciones: ${e.message}`);
+  }
+  return [];
+}
 
+/**
+ * Muestra el estado del curso en la base institucional
+ */
+async function mostrarEstadoInstancia(processInstanceId) {
+  try {
+    const res = await fetch(`${DEFAULT_BASE_URL}/cursos/${encodeURIComponent(processInstanceId)}/estado`);
+    if (res.ok) {
+      const json = await res.json();
+      const d = json.datos;
+      console.log(`\n${colors.bold}CURSO SELECCIONADO:${colors.reset} ${colors.cyan}${d.nombreCurso || 'S/T'}${colors.reset} [${d.cursoId || '-'}]`);
+      console.log(`${colors.bold}ESTADO GENERAL:${colors.reset}     ${colors.yellow}${d.estado ? d.estado.toUpperCase() : 'PENDIENTE'}${colors.reset}`);
+      if (d.empresaEmail) {
+        console.log(`${colors.bold}EMPRESA:${colors.reset}            ${d.empresaEmail}`);
+      }
+    }
+  } catch (ignored) {}
+}
+
+/**
+ * Consulta tareas activas
+ */
+async function consultarTareasInstancia(processInstanceId) {
+  try {
+    const res = await fetch(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/tareas`);
+    if (res.ok) {
+      const json = await res.json();
+      const tareas = json.datos || [];
+      console.log(`\n${colors.bold}Tareas activas en la institución para este curso:${colors.reset}`);
+      if (tareas.length === 0) {
+        console.log(`  (Sin tareas humanas activas en este instante)`);
+      } else {
+        tareas.forEach(t => {
+          console.log(`  • ${colors.yellow}${t.taskName}${colors.reset} (Asignado: ${t.assignee || 'Grupo Administración'})`);
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error al consultar tareas:', e.message);
+  }
+}
+
+/**
+ * Avanza cualquier temporizador activo (Timer Job) en Flowable
+ */
+async function avanzarTemporizador(processInstanceId) {
+  try {
+    const res = await fetch(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/avanzar-temporizador`, { method: 'POST' });
+    const json = await res.json();
+    if (json.datos) {
+      console.log(`\n${colors.green}${colors.bold}[✓] Temporizador avanzado exitosamente en Flowable. Se simuló el vencimiento de los días.${colors.reset}`);
+    } else {
+      console.log(`\n${colors.yellow}[!] No hay ningún temporizador activo esperando en este momento para esta instancia.${colors.reset}`);
+    }
+  } catch (e) {
+    console.error('Error al avanzar temporizador:', e.message);
+  }
+}
+
+/**
+ * Alterna el toggle de falta de aulas (Escenario 7)
+ */
+async function alternarFaltaAulas() {
+  try {
+    const res = await fetch(`${DEFAULT_BASE_URL}/simulacion/toggle-falta-aula`, { method: 'POST' });
+    const json = await res.json();
+    if (json.datos) {
+      console.log(`\n${colors.red}${colors.bold}[⚡] Falta de aulas forzada ACTIVADA (Escenario 7). La próxima reserva presencial fallará.${colors.reset}`);
+    } else {
+      console.log(`\n${colors.green}${colors.bold}[✓] Disponibilidad de aulas restablecida a NORMAL.${colors.reset}`);
+    }
+  } catch (e) {
+    console.error('Error al alternar falta de aulas:', e.message);
+  }
+}
+
+/**
+ * Ejecuta la comunicación de negocio elegida
+ */
+async function procesarComunicacion(opcion, habilitadas, processInstanceId) {
   switch (opcion) {
-    case '1': { // Aceptar propuesta
-      console.log(`\n${colors.green}${colors.bold}>>> Opción 1: ACEPTAR PROPUESTA${colors.reset}`);
-      return {
-        aprobado: true,
-        observaciones: 'Propuesta académica y condiciones aceptadas formalmente por la empresa.',
-        variablesAdicionales: {
-          decisionEmpresa: 'ACEPTADA',
-          estado: 'finalizado',
-          confirmacionPresupuesto: true,
-          fechaRespuestaEmpresa: timestamp
-        }
-      };
+    case '1': {
+      if (!habilitadas.includes('ACEPTAR_PROPUESTA')) {
+        console.log(`${colors.red}[✕] La acción ACEPTAR PROPUESTA no está habilitada en este estado.${colors.reset}`);
+        return;
+      }
+      const fechaDef = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0] + 'T09:00:00';
+      const fInput = (await rl.question(`Ingrese fecha acordada de inicio [${fechaDef}]: `)).trim();
+      const fechaInicioCurso = fInput || fechaDef;
+
+      console.log(`\nEnviando aceptación de propuesta con fecha ${fechaInicioCurso}...`);
+      await postJson(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicacion/aceptar`, { fechaInicioCurso });
+      console.log(`${colors.green}${colors.bold}[✓] ¡Propuesta aceptada! El curso ingresó en la fase de Preparación en 3 ramas paralelas.${colors.reset}`);
+      break;
     }
 
-    case '2': { // Rechazar
-      console.log(`\n${colors.red}${colors.bold}>>> Opción 2: RECHAZAR PROPUESTA${colors.reset}`);
-      const motivo = (await rl.question(`${colors.bold}Ingrese el motivo del rechazo: ${colors.reset}`)).trim() 
-        || 'Presupuesto no aprobado por gerencia.';
-      return {
-        aprobado: false,
-        observaciones: `Propuesta rechazada por la empresa: ${motivo}`,
-        variablesAdicionales: {
-          decisionEmpresa: 'RECHAZADA',
-          estado: 'rechazado',
-          motivoRechazo: motivo,
-          fechaRespuestaEmpresa: timestamp
-        }
-      };
+    case '2': {
+      if (!habilitadas.includes('RECHAZAR_PROPUESTA')) {
+        console.log(`${colors.red}[✕] La acción RECHAZAR PROPUESTA no está habilitada en este estado.${colors.reset}`);
+        return;
+      }
+      const mInput = (await rl.question('Ingrese motivo de rechazo [Presupuesto no aprobado]: ')).trim();
+      const motivo = mInput || 'Presupuesto no aprobado para este período';
+
+      await postJson(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicacion/rechazar`, { motivo });
+      console.log(`${colors.red}${colors.bold}[✓] Notificación de rechazo enviada. La instancia se dirigirá al archivo.${colors.reset}`);
+      break;
     }
 
-    case '3': { // Pedir modificaciones
-      console.log(`\n${colors.yellow}${colors.bold}>>> Opción 3: SOLICITAR MODIFICACIONES${colors.reset}`);
-      const cambios = (await rl.question(`${colors.bold}Detalle los cambios o ajustes requeridos: ${colors.reset}`)).trim() 
-        || 'Ajuste en los horarios y reducción del cupo inicial.';
-      return {
-        aprobado: false,
-        observaciones: `Modificaciones requeridas por la empresa: ${cambios}`,
-        variablesAdicionales: {
-          decisionEmpresa: 'MODIFICACIONES_SOLICITADAS',
-          estado: 'en_preparacion',
-          requiereRevision: true,
-          detalleModificaciones: cambios,
-          fechaRespuestaEmpresa: timestamp
-        }
-      };
+    case '3': {
+      if (!habilitadas.includes('SOLICITAR_MODIFICACIONES')) {
+        console.log(`${colors.red}[✕] La acción SOLICITAR MODIFICACIONES no está habilitada en este estado.${colors.reset}`);
+        return;
+      }
+      const oInput = (await rl.question('Ingrese modificaciones solicitadas [Ajustar horario a turno tarde]: ')).trim();
+      const observaciones = oInput || 'Ajustar horario a turno tarde y modalidad mixta';
+
+      await postJson(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicacion/modificaciones`, { observaciones });
+      console.log(`${colors.yellow}${colors.bold}[✓] Modificaciones enviadas. Se habilitó la tarea de Revisar Propuesta para el Jefe Administrativo.${colors.reset}`);
+      break;
     }
 
-    case '4': { // Cancelar
-      console.log(`\n${colors.magenta}${colors.bold}>>> Opción 4: CANCELAR SOLICITUD${colors.reset}`);
-      const motivoCancel = (await rl.question(`${colors.bold}Ingrese motivo de cancelación: ${colors.reset}`)).trim() 
-        || 'Cancelado por reestructuración interna de la empresa.';
-      return {
-        aprobado: false,
-        observaciones: `Proceso cancelado por la empresa: ${motivoCancel}`,
-        variablesAdicionales: {
-          decisionEmpresa: 'CANCELADA',
-          estado: 'cancelado',
-          canceladoPorEmpresa: true,
-          motivoCancelacion: motivoCancel,
-          fechaRespuestaEmpresa: timestamp
-        }
-      };
+    case '4': {
+      if (!habilitadas.includes('ENVIAR_NOMINA')) {
+        console.log(`${colors.red}[✕] La acción ENVIAR NÓMINA no está habilitada en este estado.${colors.reset}`);
+        return;
+      }
+      console.log('\nEnviando nómina de participantes corporativos...');
+      const nomina = [
+        'Ing. Carlos Menéndez (Desarrollo)',
+        'Lic. Valeria Ruiz (Arquitectura)',
+        'Tec. Fernando Silva (Infraestructura)',
+        'Dra. Patricia Blanco (Calidad)'
+      ];
+      await postJson(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicacion/nomina`, { nomina });
+      console.log(`${colors.cyan}${colors.bold}[✓] Nómina enviada exitosamente. Se activó la confección de lista definitiva con balanceo de carga.${colors.reset}`);
+      break;
+    }
+
+    case '5': {
+      if (!habilitadas.includes('CANCELAR_PREPARACION')) {
+        console.log(`${colors.red}[✕] La acción CANCELAR PREPARACIÓN no está habilitada en este estado.${colors.reset}`);
+        return;
+      }
+      const cInput = (await rl.question('Ingrese motivo de la cancelación [Reestructuración del cronograma]: ')).trim();
+      const motivo = cInput || 'Reestructuración interna de prioridades de la empresa';
+
+      await postJson(`${DEFAULT_BASE_URL}/instancias/${processInstanceId}/comunicacion/cancelar`, { motivo });
+      console.log(`${colors.magenta}${colors.bold}[✓] Cancelación enviada. Se interrumpen las 3 ramas y se ejecutan las compensaciones para liberar recursos gestionados.${colors.reset}`);
+      break;
     }
 
     default:
-      return null;
+      console.log(`${colors.red}Opción no reconocida.${colors.reset}`);
   }
+}
+
+async function postJson(url, payload) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.mensaje || `Error HTTP ${res.status}`);
+  }
+  return await res.json().catch(() => ({}));
 }
 
 /**
- * Realiza el POST HTTP a la API REST de Spring Boot para completar la tarea
+ * Crea una nueva instancia con datos aleatorios
  */
-async function enviarDecision(taskId, payload) {
+async function crearNuevaInstanciaAutomatica() {
+  const randomId = 'CURSO-' + Math.floor(1000 + Math.random() * 9000);
+  console.log(`\n${colors.cyan}Iniciando nueva solicitud automática para [${randomId}]...${colors.reset}`);
+
   try {
-    const url = `${DEFAULT_BASE_URL}/tareas/${encodeURIComponent(taskId)}/completar`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    const json = await postJson(`${DEFAULT_BASE_URL}/iniciar`, {
+      cursoId: randomId,
+      nombreCurso: `Capacitación de Procesos BPMN y Microservicios (${randomId})`,
+      categoria: 'Tecnologías y Sistemas',
+      emailSolicitante: 'capacitacion@empresa-demo.com',
+      cupoMaximo: 25,
+      descripcion: 'Curso empresarial intensivo creado desde el simulador de comunicaciones.'
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      console.error(`\n${colors.red}[✕] Error del servidor: ${data.mensaje || res.statusText}${colors.reset}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error(`\n${colors.red}[✕] Error de conexión: ${error.message}${colors.reset}`);
-    return false;
+    console.log(`${colors.green}${colors.bold}[✓] Proceso iniciado con éxito.${colors.reset}`);
+    return json.datos?.processInstanceId;
+  } catch (e) {
+    console.error(`Error al iniciar curso: ${e.message}`);
+    return null;
   }
 }
 
-// Iniciar aplicación
 main();

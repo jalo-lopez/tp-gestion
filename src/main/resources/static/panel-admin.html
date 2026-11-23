@@ -3,13 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Administración: tareas pendientes</title>
+  <title>Administración: tareas pendientes | Flowable BPM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible+Next:wght@400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Ajustes específicos para los diálogos del panel */
+    dialog { max-width: 640px; }
+    dialog.ancho-lg { max-width: 720px; }
+    
+    .checklist-recursos {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin: 0.4rem 0;
+    }
+    .check-opcion {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--regla);
+      border-radius: var(--r);
+      background: var(--hoja);
+      cursor: pointer;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .check-opcion:hover {
+      border-color: var(--lapicera);
+      background: var(--papel);
+    }
+    .check-opcion input[type="checkbox"] {
+      margin-top: 0.2rem;
+      width: 1.15rem;
+      height: 1.15rem;
+      accent-color: var(--lapicera);
+    }
+    .check-opcion strong { display: block; font-size: 0.95rem; }
+    .check-opcion small { color: var(--grafito); font-size: 0.82rem; }
+
+    .lista-participantes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 0.25rem 0;
+    }
+    .fila-participante {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .fila-participante input { flex: 1; }
+    .btn-borrar {
+      padding: 0.45rem 0.75rem;
+      background: var(--sello-fondo);
+      color: var(--sello);
+      border: 1px solid var(--sello);
+      border-radius: var(--r);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-borrar:hover { background: #f8d7da; }
+
+    .aviso-error {
+      color: var(--sello);
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-top: 0.3rem;
+    }
+
+    .badge-tipo {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--r);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-propuesta { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-recursos { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .badge-nomina { background: var(--visto-fondo); color: var(--visto); border: 1px solid #a7f3d0; }
+    .badge-general { background: var(--hoja); color: var(--grafito); border: 1px solid var(--regla); }
+
+    .barra-simulacion {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.9rem;
+      background: var(--papel);
+      border: 1px dashed var(--regla-fuerte);
+      border-radius: var(--r);
+      font-size: 0.88rem;
+    }
+  </style>
 </head>
 <body>
+  <!-- CABECERA -->
   <header class="cabecera">
     <div class="cabecera-in">
       <a class="marca" href="index.html">Cursos y procesos</a>
@@ -22,37 +115,59 @@
     </div>
   </header>
 
+  <!-- PÁGINA PRINCIPAL -->
   <main class="pagina">
     <div class="encabezado">
       <div>
-        <h1>Tareas pendientes</h1>
-        <p>Las tareas se reparten entre operadores según la carga de cada uno.</p>
+        <h1>Tareas administrativas</h1>
+        <p>Bandeja de gestión de Flowable BPM. Asignaciones directas y balanceo de carga.</p>
       </div>
-      <div class="operador">
-        <label for="operador">Operador</label>
-        <select id="operador">
-          <option value="admin_laura" selected>Laura Gómez (jefa administrativa)</option>
-          <option value="admin_martin">Martín Pérez (administrativo)</option>
-          <option value="docente_carlos">Carlos Rodríguez (jefe docente)</option>
-        </select>
-        <button type="button" id="btn-actualizar" class="boton boton-sec chico">Actualizar</button>
+
+      <div style="display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-end;">
+        <div class="operador">
+          <label for="operador">Operador:</label>
+          <select id="operador">
+            <option value="admin_laura" selected>Laura Gómez (jefa administrativa)</option>
+            <option value="admin_martin">Martín Pérez (administrativo)</option>
+            <option value="docente_carlos">Carlos Rodríguez (jefe docente)</option>
+          </select>
+          <button type="button" id="btn-actualizar" class="boton boton-sec chico" title="Refrescar lista">↻</button>
+        </div>
+
+        <!-- Atajo para probar Escenario 7 (Simulación de Falta de Aulas) -->
+        <div class="barra-simulacion">
+          <span>⚡ <strong>Escenario 7:</strong></span>
+          <span id="badge-estado-aula" class="estado ok" style="font-size:0.75rem;">Aulas normales</span>
+          <button type="button" id="btn-toggle-aula" class="boton boton-sec chico" style="font-size:0.78rem; padding:0.2rem 0.5rem;">
+            Simular Falta de Aulas
+          </button>
+        </div>
       </div>
     </div>
 
+    <!-- SECCIÓN DE BANDEJA DE TAREAS -->
     <section class="bloque">
-      <h2><span id="pendientes" class="recuento">0</span> pendientes</h2>
+      <h2><span id="pendientes" class="recuento">0</span> tareas pendientes</h2>
 
-      <p id="cargando" class="cargando">Cargando tareas…</p>
+      <p id="cargando" class="cargando">Cargando tareas asignadas desde Flowable...</p>
 
       <div id="vacio" class="vacio" hidden>
-        <p>No hay tareas para revisar.</p>
-        <a href="index.html" class="boton boton-sec chico">Cargar una solicitud</a>
+        <p>No hay tareas pendientes en la bandeja de este usuario.</p>
+        <a href="index.html" class="boton boton-sec chico">Cargar una nueva solicitud</a>
       </div>
 
       <div id="tabla" class="tabla-scroll" hidden>
         <table>
           <thead>
-            <tr><th>Tarea</th><th>Curso</th><th>Código</th><th>Solicitante</th><th>Recibida</th><th></th></tr>
+            <tr>
+              <th>Tipo</th>
+              <th>Tarea</th>
+              <th>Curso</th>
+              <th>Código</th>
+              <th>Solicitante</th>
+              <th>Recibida</th>
+              <th>Acciones</th>
+            </tr>
           </thead>
           <tbody id="filas"></tbody>
         </table>
@@ -60,9 +175,222 @@
     </section>
   </main>
 
-  <dialog id="revision" aria-labelledby="rev-titulo">
+  <!-- ================================================================= -->
+  <!-- DIÁLOGO 1: REGISTRAR Y ELABORAR PROPUESTA (Sección 1.1 y 4.1.3)   -->
+  <!-- ================================================================= -->
+  <dialog id="dialog-elaborar-propuesta" class="ancho-lg">
+    <form id="form-elaborar-propuesta">
+      <h2>📝 Registrar y Elaborar Propuesta</h2>
+      <p class="pista">Defina las condiciones académicas, cronograma y presupuesto a enviar a la empresa.</p>
+
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="ep-info-curso">-</dd></div>
+        <div><dt>Código</dt><dd id="ep-info-id" class="codigo">-</dd></div>
+        <div><dt>Solicitante</dt><dd id="ep-info-solicitante">-</dd></div>
+        <div><dt>Cupo estimado</dt><dd id="ep-info-cupo">-</dd></div>
+      </dl>
+
+      <div class="campos">
+        <div class="campo ancho">
+          <label for="ep-titulo">Título formal de la propuesta *</label>
+          <input type="text" id="ep-titulo" placeholder="Ej: Programa Integral de Capacitación en BPMN y Flowable" required>
+        </div>
+
+        <div class="campo">
+          <label for="ep-modalidad">Modalidad de dictado *</label>
+          <select id="ep-modalidad" required>
+            <option value="Presencial">Presencial (Requiere aula física)</option>
+            <option value="Virtual">Virtual (Requiere aula virtual)</option>
+            <option value="Hibrida">Híbrida (Presencial y online)</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="ep-duracion">Carga horaria total (horas) *</label>
+          <input type="number" id="ep-duracion" min="1" value="24" required>
+        </div>
+
+        <div class="campo">
+          <label for="ep-presupuesto">Presupuesto cotizado *</label>
+          <input type="text" id="ep-presupuesto" placeholder="Ej: $ 950.000 ARS" required>
+        </div>
+
+        <div class="campo">
+          <label for="ep-fecha-inicio">Fecha de inicio acordada/propuesta *</label>
+          <input type="date" id="ep-fecha-inicio" required>
+        </div>
+
+        <div class="campo ancho">
+          <label for="ep-programa">Programa / Temario detallado *</label>
+          <textarea id="ep-programa" rows="3" placeholder="Módulo 1: Conceptos básicos. Módulo 2: Modelado práctico..." required></textarea>
+        </div>
+
+        <div class="campo ancho">
+          <label for="ep-obs">Observaciones adicionales para el expediente</label>
+          <textarea id="ep-obs" rows="2" placeholder="Condiciones de pago, materiales incluidos o requisitos del aula..."></textarea>
+        </div>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="boton boton-sec" onclick="$('dialog-elaborar-propuesta').close()">Cancelar</button>
+        <button type="submit" class="boton boton-ok">Registrar Propuesta y Emitir PDF →</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================================================================= -->
+  <!-- DIÁLOGO 2: REVISAR PROPUESTA (Sección 1.1 y 4.1.3)                -->
+  <!-- ================================================================= -->
+  <dialog id="dialog-revisar-propuesta">
+    <form id="form-revisar-propuesta">
+      <h2>🔍 Revisar Propuesta de Curso</h2>
+      <p class="pista">Analice las modificaciones solicitadas por la empresa y emita una nueva resolución.</p>
+
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="rp-info-curso">-</dd></div>
+        <div><dt>Solicitante</dt><dd id="rp-info-solicitante">-</dd></div>
+        <div class="ancho"><dt>Última propuesta</dt><dd id="rp-info-propuesta">-</dd></div>
+      </dl>
+
+      <div class="campo">
+        <label>Dictamen administrativo *</label>
+        <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.3rem;">
+          <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal; cursor:pointer;">
+            <input type="radio" name="rp-decision" value="aprobar" checked>
+            <strong>Aprobar propuesta ajustada</strong> (Reenviar a la empresa)
+          </label>
+          <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal; cursor:pointer;">
+            <input type="radio" name="rp-decision" value="modificar">
+            <strong>Reiterar modificaciones</strong>
+          </label>
+          <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal; cursor:pointer;">
+            <input type="radio" name="rp-decision" value="rechazar">
+            <span style="color:var(--sello);"><strong>Archivar / Rechazar solicitud</strong></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label for="rp-obs">Fundamento o justificación de la revisión *</label>
+        <textarea id="rp-obs" rows="3" placeholder="Detalle las adecuaciones introducidas en fechas, temario o aranceles..." required></textarea>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="boton boton-sec" onclick="$('dialog-revisar-propuesta').close()">Cancelar</button>
+        <button type="submit" class="boton boton-ok">Confirmar Revisión →</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================================================================= -->
+  <!-- DIÁLOGO 3: EVALUAR RECURSOS (Sección 1.2 y 4.1.3)                 -->
+  <!-- ================================================================= -->
+  <dialog id="dialog-evaluar-recursos" class="ancho-lg">
+    <form id="form-evaluar-recursos">
+      <h2>🏗️ Evaluar y Seleccionar Recursos</h2>
+      <p class="pista">Seleccione los recursos requeridos. Se activarán en paralelo las ramas correspondientes en Flowable.</p>
+
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="er-info-curso">-</dd></div>
+        <div><dt>Cupo</dt><dd id="er-info-cupo">-</dd></div>
+        <div class="ancho"><dt>Modalidad prevista</dt><dd id="er-info-modalidad">-</dd></div>
+      </dl>
+
+      <div class="campo">
+        <label>Alternativas de recursos (Seleccione al menos una alternativa) *</label>
+        
+        <div class="checklist-recursos">
+          <label class="check-opcion">
+            <input type="checkbox" name="recurso-item" value="aula_fisica" id="chk-aula-fisica">
+            <div>
+              <strong>🏫 Aula física</strong>
+              <small>Dispara la reserva automática de espacio presencial conectando con el Web Service.</small>
+            </div>
+          </label>
+
+          <label class="check-opcion">
+            <input type="checkbox" name="recurso-item" value="aula_virtual" id="chk-aula-virtual">
+            <div>
+              <strong>💻 Aula virtual</strong>
+              <small>Habilita la tarea humana administrativa para configuración de plataforma online (Meet/Moodle).</small>
+            </div>
+          </label>
+
+          <label class="check-opcion">
+            <input type="checkbox" name="recurso-item" value="equipamiento" id="chk-equipamiento">
+            <div>
+              <strong>🖥️ Equipamiento técnico especial</strong>
+              <small>Activa la tarea de usuario para contratar equipamiento y su compensación de liberación.</small>
+            </div>
+          </label>
+
+          <label class="check-opcion">
+            <input type="checkbox" name="recurso-item" value="materiales" id="chk-materiales">
+            <div>
+              <strong>📚 Materiales didácticos adicionales</strong>
+              <small>Manuales impresos o guías de laboratorio especiales.</small>
+            </div>
+          </label>
+        </div>
+
+        <p id="er-error" class="aviso-error" hidden>⚠️ Debe seleccionar al menos una alternativa de recurso para continuar.</p>
+      </div>
+
+      <div class="campo">
+        <label for="er-obs">Notas sobre la asignación de recursos</label>
+        <textarea id="er-obs" rows="2" placeholder="Observaciones de disponibilidad, horarios o requisitos específicos..."></textarea>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="boton boton-sec" onclick="$('dialog-evaluar-recursos').close()">Cancelar</button>
+        <button type="submit" class="boton boton-ok">Confirmar Recursos y Activar Ramas →</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================================================================= -->
+  <!-- DIÁLOGO 4: CONFECCIONAR LISTA DEFINITIVA (Sección 1.2 y 4.1.3)    -->
+  <!-- ================================================================= -->
+  <dialog id="dialog-lista-definitiva" class="ancho-lg">
+    <form id="form-lista-definitiva">
+      <h2>📋 Confeccionar Lista Definitiva</h2>
+      <p class="pista">Nómina final de participantes inscriptos para el dictado de la capacitación.</p>
+
+      <dl class="datos">
+        <div><dt>Curso</dt><dd id="ld-info-curso">-</dd></div>
+        <div><dt>Cupo máximo</dt><dd id="ld-info-cupo">-</dd></div>
+        <div><dt>Empresa</dt><dd id="ld-info-empresa">-</dd></div>
+        <div><dt>Total inscriptos</dt><dd id="ld-total-inscriptos">0</dd></div>
+      </dl>
+
+      <div class="campo">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+          <label>Nómina de participantes *</label>
+          <button type="button" class="boton boton-sec chico" onclick="agregarFilaParticipante()">+ Agregar participante</button>
+        </div>
+
+        <div id="ld-contenedor-filas" class="lista-participantes"></div>
+        <p id="ld-error" class="aviso-error" hidden>⚠️ Ingrese al menos un participante con nombre y correo electrónico.</p>
+      </div>
+
+      <div class="campo">
+        <label for="ld-obs">Observaciones de la nómina</label>
+        <textarea id="ld-obs" rows="2" placeholder="Observaciones sobre participantes oyentes o asistencias especiales..."></textarea>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="boton boton-sec" onclick="$('dialog-lista-definitiva').close()">Cancelar</button>
+        <button type="submit" class="boton boton-ok">Guardar Lista Definitiva ✓</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================================================================= -->
+  <!-- DIÁLOGO 5: REVISIÓN / COMPLETAR GENÉRICO (Fallback)               -->
+  <!-- ================================================================= -->
+  <dialog id="dialog-revision">
     <form id="form-revision">
-      <h2 id="rev-titulo"></h2>
+      <h2 id="rev-titulo">Revisión de tarea</h2>
       <dl class="datos">
         <div><dt>Curso</dt><dd id="rev-curso"></dd></div>
         <div><dt>Solicitante</dt><dd id="rev-solicitante"></dd></div>
@@ -70,27 +398,60 @@
       </dl>
       <div class="campo">
         <label for="rev-obs">Observaciones para el historial <span class="pista">(opcional)</span></label>
-        <textarea id="rev-obs" placeholder="Justificación académica o administrativa"></textarea>
+        <textarea id="rev-obs" placeholder="Justificación académica o administrativa..."></textarea>
       </div>
       <div class="acciones">
-        <button type="button" id="rev-cancelar" class="boton boton-sec">Cancelar</button>
-        <button type="submit" value="rechazar" class="boton boton-no">Rechazar</button>
-        <button type="submit" value="aprobar" class="boton boton-ok">Aprobar</button>
+        <button type="button" class="boton boton-sec" onclick="$('dialog-revision').close()">Cancelar</button>
+        <button type="submit" value="rechazar" class="boton boton-no">Rechazar / Cancelar</button>
+        <button type="submit" value="aprobar" class="boton boton-ok">Completar / Aprobar</button>
       </div>
     </form>
   </dialog>
 
+  <!-- SCRIPTS -->
   <script src="js/api.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     let tareas = [];
     let tareaActiva = null;
+    let faltaAulaActiva = false;
 
-    // Crea elementos sin pasar por innerHTML: lo que venga de Flowable se muestra como texto.
+    // Detecta el tipo de tarea para abrir el diálogo correspondiente
+    function clasificarTipoTarea(t) {
+      const def = (t.taskDefinitionKey || '').toLowerCase();
+      const nom = (t.taskName || '').toLowerCase();
+
+      if (def.includes('elaborar') || nom.includes('elaborar') || nom.includes('registrar')) {
+        return 'ELABORAR_PROPUESTA';
+      }
+      if (def.includes('revisar') || nom.includes('revisar')) {
+        return 'REVISAR_PROPUESTA';
+      }
+      if (def.includes('recurso') || nom.includes('recurso')) {
+        return 'EVALUAR_RECURSOS';
+      }
+      if (def.includes('definitiva') || nom.includes('definitiva') || nom.includes('nómina') || nom.includes('nomina')) {
+        return 'LISTA_DEFINITIVA';
+      }
+      return 'GENERICA';
+    }
+
+    function badgeTipo(tipo) {
+      switch (tipo) {
+        case 'ELABORAR_PROPUESTA': return '<span class="badge-tipo badge-propuesta">Elaborar Propuesta</span>';
+        case 'REVISAR_PROPUESTA':  return '<span class="badge-tipo badge-propuesta">Revisar Propuesta</span>';
+        case 'EVALUAR_RECURSOS':   return '<span class="badge-tipo badge-recursos">Evaluar Recursos</span>';
+        case 'LISTA_DEFINITIVA':   return '<span class="badge-tipo badge-nomina">Lista Definitiva</span>';
+        default:                   return '<span class="badge-tipo badge-general">Tarea BPM</span>';
+      }
+    }
+
+    // Helper DOM seguro
     function h(tag, attrs = {}, ...hijos) {
       const el = document.createElement(tag);
       for (const [k, v] of Object.entries(attrs)) {
         if (k === 'class') el.className = v;
+        else if (k === 'html') el.innerHTML = v;
         else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
         else el.setAttribute(k, v);
       }
@@ -100,15 +461,18 @@
 
     function fila(t) {
       const v = t.variables || {};
+      const tipo = clasificarTipoTarea(t);
+
       return h('tr', {},
-        h('td', {}, t.taskName),
+        h('td', { html: badgeTipo(tipo) }),
+        h('td', { style: 'font-weight:600;' }, t.taskName),
         h('td', {}, v.nombreCurso || 'Sin título'),
         h('td', { class: 'codigo' }, v.cursoId || '—'),
         h('td', {}, v.emailSolicitante || '—'),
         h('td', {}, t.createTime ? new Date(t.createTime).toLocaleDateString('es-AR') : 'Hoy'),
         h('td', { class: 'acc' },
           h('button', { type: 'button', class: 'enlace', onclick: () => reclamar(t.taskId) }, 'Reclamar'),
-          h('button', { type: 'button', class: 'boton chico', onclick: () => abrir(t) }, 'Revisar')
+          h('button', { type: 'button', class: 'boton chico', onclick: () => abrirDialogo(t) }, 'Revisar & Completar →')
         )
       );
     }
@@ -142,22 +506,249 @@
       }
     }
 
-    function abrir(t) {
-      const v = t.variables || {};
+    // Abre el diálogo modal correspondiente según el tipo de tarea
+    function abrirDialogo(t) {
       tareaActiva = t;
-      $('rev-titulo').textContent = t.taskName;
-      $('rev-curso').textContent = v.nombreCurso || v.cursoId || '-';
-      $('rev-solicitante').textContent = v.emailSolicitante || '-';
-      $('rev-cupo').textContent = v.cupoMaximo ? `${v.cupoMaximo} participantes` : '-';
-      $('rev-obs').value = '';
-      $('revision').showModal();
+      const v = t.variables || {};
+      const tipo = clasificarTipoTarea(t);
+
+      // Cierre preventivo
+      document.querySelectorAll('dialog').forEach(d => { if (d.open) d.close(); });
+
+      switch (tipo) {
+        case 'ELABORAR_PROPUESTA': {
+          $('ep-info-curso').textContent = v.nombreCurso || '-';
+          $('ep-info-id').textContent = v.cursoId || '-';
+          $('ep-info-solicitante').textContent = v.emailSolicitante || '-';
+          $('ep-info-cupo').textContent = (v.cupoMaximo || '-') + ' participantes';
+          
+          $('ep-titulo').value = v.nombreCurso ? `Propuesta: ${v.nombreCurso}` : '';
+          $('ep-modalidad').value = 'Presencial';
+          $('ep-duracion').value = '24';
+          $('ep-presupuesto').value = '$ 950.000 ARS';
+          
+          const manana = new Date();
+          manana.setDate(manana.getDate() + 15);
+          $('ep-fecha-inicio').value = manana.toISOString().split('T')[0];
+
+          $('ep-programa').value = v.descripcion || 'Módulo 1: Fundamentos teóricos.\nMódulo 2: Talleres prácticos.\nMódulo 3: Evaluación y cierre.';
+          $('ep-obs').value = '';
+          $('dialog-elaborar-propuesta').showModal();
+          break;
+        }
+
+        case 'REVISAR_PROPUESTA': {
+          $('rp-info-curso').textContent = v.nombreCurso || '-';
+          $('rp-info-solicitante').textContent = v.emailSolicitante || '-';
+          $('rp-info-propuesta').textContent = v.tituloPropuesta || v.programa || 'Versión inicial enviada';
+          $('rp-obs').value = '';
+          document.querySelector('input[name="rp-decision"][value="aprobar"]').checked = true;
+          $('dialog-revisar-propuesta').showModal();
+          break;
+        }
+
+        case 'EVALUAR_RECURSOS': {
+          $('er-info-curso').textContent = v.nombreCurso || '-';
+          $('er-info-cupo').textContent = (v.cupoMaximo || '-') + ' participantes';
+          $('er-info-modalidad').textContent = v.modalidadPropuesta || 'Presencial / Virtual';
+          
+          $('chk-aula-fisica').checked = true;
+          $('chk-aula-virtual').checked = false;
+          $('chk-equipamiento').checked = false;
+          $('chk-materiales').checked = true;
+          $('er-error').hidden = true;
+          $('er-obs').value = '';
+          $('dialog-evaluar-recursos').showModal();
+          break;
+        }
+
+        case 'LISTA_DEFINITIVA': {
+          $('ld-info-curso').textContent = v.nombreCurso || '-';
+          $('ld-info-cupo').textContent = (v.cupoMaximo || '-') + ' cupos';
+          $('ld-info-empresa').textContent = v.emailSolicitante || '-';
+          $('ld-contenedor-filas').replaceChildren();
+          $('ld-error').hidden = true;
+          $('ld-obs').value = '';
+
+          // Fila inicial
+          agregarFilaParticipante('Juan Pérez', 'juan.perez@empresa.com');
+          agregarFilaParticipante('María González', 'maria.gonzalez@empresa.com');
+          $('dialog-lista-definitiva').showModal();
+          break;
+        }
+
+        default: {
+          $('rev-titulo').textContent = t.taskName;
+          $('rev-curso').textContent = v.nombreCurso || v.cursoId || '-';
+          $('rev-solicitante').textContent = v.emailSolicitante || '-';
+          $('rev-cupo').textContent = v.cupoMaximo ? `${v.cupoMaximo} participantes` : '-';
+          $('rev-obs').value = '';
+          $('dialog-revision').showModal();
+          break;
+        }
+      }
     }
 
+    // ── Formulario 1: Elaborar Propuesta ─────────────────────────────
+    $('form-elaborar-propuesta').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado: true,
+          observaciones: $('ep-obs').value || 'Propuesta académica y económica registrada formalmente.',
+          variablesAdicionales: {
+            tituloPropuesta: $('ep-titulo').value,
+            modalidadPropuesta: $('ep-modalidad').value,
+            duracionHoras: $('ep-duracion').value,
+            presupuesto: $('ep-presupuesto').value,
+            programa: $('ep-programa').value,
+            fechaInicio: $('ep-fecha-inicio').value,
+            fechaResolucion: new Date().toISOString()
+          }
+        });
+        showToast('Propuesta registrada y enviada a la empresa.', 'success');
+        $('dialog-elaborar-propuesta').close();
+        cargar();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── Formulario 2: Revisar Propuesta ──────────────────────────────
+    $('form-revisar-propuesta').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const decision = document.querySelector('input[name="rp-decision"]:checked').value;
+      const obs = $('rp-obs').value.trim();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado: decision === 'aprobar',
+          observaciones: obs,
+          variablesAdicionales: {
+            decisionRevision: decision,
+            fechaResolucion: new Date().toISOString()
+          }
+        });
+        showToast(`Revisión completada: ${decision.toUpperCase()}`, 'success');
+        $('dialog-revisar-propuesta').close();
+        cargar();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── Formulario 3: Evaluar Recursos ───────────────────────────────
+    $('form-evaluar-recursos').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const seleccionados = Array.from(document.querySelectorAll('input[name="recurso-item"]:checked'))
+        .map(cb => cb.value);
+
+      if (seleccionados.length === 0) {
+        $('er-error').hidden = false;
+        return;
+      }
+      $('er-error').hidden = true;
+
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado: true,
+          observaciones: $('er-obs').value || 'Evaluación de recursos finalizada.',
+          variablesAdicionales: {
+            recursosNecesarios: seleccionados.join(','),
+            requiereAulaFisica: seleccionados.includes('aula_fisica'),
+            requiereAulaVirtual: seleccionados.includes('aula_virtual'),
+            requiereEquipamiento: seleccionados.includes('equipamiento'),
+            fechaResolucion: new Date().toISOString()
+          }
+        });
+        showToast('Recursos evaluados. Ramas paralelas activadas en Flowable.', 'success');
+        $('dialog-evaluar-recursos').close();
+        cargar();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── Formulario 4: Lista Definitiva ───────────────────────────────
+    function agregarFilaParticipante(nombre = '', email = '') {
+      const contenedor = $('ld-contenedor-filas');
+      const fila = h('div', { class: 'fila-participante' },
+        h('input', { type: 'text', placeholder: 'Nombre y apellido', value: nombre, class: 'part-nombre', required: 'true' }),
+        h('input', { type: 'email', placeholder: 'correo@empresa.com', value: email, class: 'part-email', required: 'true' }),
+        h('button', { type: 'button', class: 'btn-borrar', title: 'Quitar', onclick: (ev) => {
+          ev.target.closest('.fila-participante').remove();
+          actualizarTotalInscriptos();
+        } }, '✕')
+      );
+      contenedor.appendChild(fila);
+      actualizarTotalInscriptos();
+    }
+
+    function actualizarTotalInscriptos() {
+      const cant = document.querySelectorAll('.fila-participante').length;
+      $('ld-total-inscriptos').textContent = cant;
+    }
+
+    $('form-lista-definitiva').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const filas = document.querySelectorAll('.fila-participante');
+      const participantes = [];
+
+      filas.forEach(f => {
+        const nom = f.querySelector('.part-nombre').value.trim();
+        const em = f.querySelector('.part-email').value.trim();
+        if (nom && em) participantes.push({ nombre: nom, email: em });
+      });
+
+      if (participantes.length === 0) {
+        $('ld-error').hidden = false;
+        return;
+      }
+      $('ld-error').hidden = true;
+
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+
+      try {
+        await api.completarTarea(tareaActiva.taskId, {
+          aprobado: true,
+          observaciones: $('ld-obs').value || 'Lista definitiva de participantes confeccionada.',
+          variablesAdicionales: {
+            cantidadParticipantes: participantes.length,
+            listaParticipantes: JSON.stringify(participantes),
+            fechaResolucion: new Date().toISOString()
+          }
+        });
+        showToast(`Lista definitiva confirmada con ${participantes.length} participantes.`, 'success');
+        $('dialog-lista-definitiva').close();
+        cargar();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ── Formulario 5: Genérico ───────────────────────────────────────
     $('form-revision').addEventListener('submit', async (e) => {
       e.preventDefault();
       const aprobado = e.submitter.value === 'aprobar';
       const botones = e.target.querySelectorAll('button');
-      botones.forEach((b) => { b.disabled = true; });
+      botones.forEach(b => { b.disabled = true; });
+
       try {
         await api.completarTarea(tareaActiva.taskId, {
           aprobado,
@@ -165,18 +756,40 @@
             (aprobado ? 'Aprobado sin observaciones' : 'Rechazado por dictamen administrativo'),
           variablesAdicionales: { fechaResolucion: new Date().toISOString() }
         });
-        showToast(aprobado ? 'Curso aprobado' : 'Solicitud rechazada', 'success');
-        $('revision').close();
+        showToast(aprobado ? 'Tarea completada exitosamente' : 'Solicitud rechazada/archivada', 'success');
+        $('dialog-revision').close();
         cargar();
       } catch (err) {
-        console.error(err);
         showToast(err.message, 'error');
       } finally {
-        botones.forEach((b) => { b.disabled = false; });
+        botones.forEach(b => { b.disabled = false; });
       }
     });
 
-    $('rev-cancelar').addEventListener('click', () => $('revision').close());
+    // ── Control de Simulación Escenario 7 (Falta de Aulas) ────────────
+    $('btn-toggle-aula').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/v1/cursos/procesos/simulacion/toggle-falta-aula', { method: 'POST' });
+        const json = await res.json();
+        faltaAulaActiva = json.datos;
+        
+        if (faltaAulaActiva) {
+          $('badge-estado-aula').className = 'estado no';
+          $('badge-estado-aula').textContent = '⚠️ Falta forzada (Escenario 7)';
+          $('btn-toggle-aula').textContent = 'Restablecer Aulas Normales';
+          showToast('Falla de aulas ACTIVADA: La próxima reserva fallará con excepción.', 'error');
+        } else {
+          $('badge-estado-aula').className = 'estado ok';
+          $('badge-estado-aula').textContent = 'Aulas normales';
+          $('btn-toggle-aula').textContent = 'Simular Falta de Aulas';
+          showToast('Disponibilidad de aulas restablecida a normal.', 'success');
+        }
+      } catch (err) {
+        showToast('No se pudo cambiar el estado de aulas: ' + err.message, 'error');
+      }
+    });
+
+    // Eventos iniciales
     $('operador').addEventListener('change', cargar);
     $('btn-actualizar').addEventListener('click', cargar);
     cargar();
