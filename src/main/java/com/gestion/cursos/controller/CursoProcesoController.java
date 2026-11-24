@@ -32,10 +32,14 @@ public class CursoProcesoController {
 
     private final CursoProcessService cursoProcessService;
     private final PdfGeneratorService pdfGeneratorService;
+    private final com.gestion.cursos.service.DefensaService defensaService;
 
-    public CursoProcesoController(CursoProcessService cursoProcessService, PdfGeneratorService pdfGeneratorService) {
+    public CursoProcesoController(CursoProcessService cursoProcessService,
+                                  PdfGeneratorService pdfGeneratorService,
+                                  com.gestion.cursos.service.DefensaService defensaService) {
         this.cursoProcessService = cursoProcessService;
         this.pdfGeneratorService = pdfGeneratorService;
+        this.defensaService = defensaService;
     }
 
     // =========================================================================
@@ -277,6 +281,22 @@ public class CursoProcesoController {
                 "metricasTareasUsuarios", cursoProcessService.obtenerMetricasTareasPorUsuario()
         );
         return ResponseEntity.ok(ApiResponse.exito("Resumen integral de métricas históricas", resumen));
+    }
+
+    // =========================================================================
+    // 6. PREPARACIÓN DE ESCENARIOS PARA LA DEFENSA (Sección 1, 3, 4 y 5)
+    // =========================================================================
+
+    @PostMapping("/defensa/cargar-escenarios")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cargarEscenariosDefensaPost() {
+        Map<String, Object> resultado = defensaService.cargarEscenariosDefensa();
+        return ResponseEntity.ok(ApiResponse.exito("Escenarios de defensa procesados exitosamente", resultado));
+    }
+
+    @GetMapping("/defensa/cargar-escenarios")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cargarEscenariosDefensaGet() {
+        Map<String, Object> resultado = defensaService.cargarEscenariosDefensa();
+        return ResponseEntity.ok(ApiResponse.exito("Escenarios de defensa procesados exitosamente", resultado));
     }
 
     @ExceptionHandler(Exception.class)

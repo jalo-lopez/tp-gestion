@@ -44,7 +44,7 @@
                 <flowNodeRef>catchAceptacion</flowNodeRef>
                 <flowNodeRef>habilitarAccesoEmpresaTask</flowNodeRef>
                 <flowNodeRef>subProcessPrepararCurso</flowNodeRef>
-                <flowNodeRef>catchErrCancelacion</flowNodeRef>
+                <flowNodeRef>xorSalidaPreparacion</flowNodeRef>
                 <flowNodeRef>notificarCierreTask</flowNodeRef>
                 <flowNodeRef>endEventCancelado</flowNodeRef>
                 <flowNodeRef>enviarConfirmacionTask</flowNodeRef>
@@ -293,23 +293,27 @@
                 <terminateEventDefinition />
             </endEvent>
 
-            <!-- Event Subprocess de Cancelación durante la preparación (Sección 1.3) -->
+            <!-- Event Subprocess de Cancelación durante la preparación (Sección 1.3 y recomendación de cátedra) -->
             <subProcess id="subProcessCancelacion" name="Cancelación" triggeredByEvent="true">
-                <startEvent id="startCancelacion" isInterrupting="false">
+                <startEvent id="startCancelacion" isInterrupting="true">
                     <messageEventDefinition messageRef="msgRecibirCancelacion" />
                 </startEvent>
 
                 <sequenceFlow id="flowSubCancel1" sourceRef="startCancelacion" targetRef="throwCompensacionCancelacion" />
 
-                <intermediateThrowEvent id="throwCompensacionCancelacion">
+                <intermediateThrowEvent id="throwCompensacionCancelacion" name="Disparar compensaciones">
                     <compensateEventDefinition />
                 </intermediateThrowEvent>
 
-                <sequenceFlow id="flowSubCancel2" sourceRef="throwCompensacionCancelacion" targetRef="endCancelacionConError" />
+                <sequenceFlow id="flowSubCancel2" sourceRef="throwCompensacionCancelacion" targetRef="pausaCancelacionUserTask" />
 
-                <endEvent id="endCancelacionConError">
-                    <errorEventDefinition errorRef="errCancelacion" />
-                </endEvent>
+                <!-- Tarea de usuario de pausa solicitada expresamente por la cátedra para verificar compensaciones -->
+                <userTask id="pausaCancelacionUserTask" name="Dejar una actividad User para que pare"
+                          flowable:candidateGroups="Administración" />
+
+                <sequenceFlow id="flowSubCancel3" sourceRef="pausaCancelacionUserTask" targetRef="endCancelacionSubProcess" />
+
+                <endEvent id="endCancelacionSubProcess" name="Fin Cancelación" />
             </subProcess>
 
             <association id="assocCompAula" associationDirection="One" sourceRef="compReservarAula" targetRef="liberarAulaTask" />
@@ -318,12 +322,15 @@
 
         </subProcess>
 
-        <!-- Límite de error por cancelación en el Subproceso -->
-        <boundaryEvent id="catchErrCancelacion" attachedToRef="subProcessPrepararCurso">
-            <errorEventDefinition errorRef="errCancelacion" />
-        </boundaryEvent>
+        <!-- Salida del Subproceso canalizada mediante compuerta XOR según indicación de cátedra -->
+        <sequenceFlow id="flowSubProcessToXorSalida" sourceRef="subProcessPrepararCurso" targetRef="xorSalidaPreparacion" />
 
-        <sequenceFlow id="flowErrorToNotificarCierre" sourceRef="catchErrCancelacion" targetRef="notificarCierreTask" />
+        <exclusiveGateway id="xorSalidaPreparacion" name="¿Curso cancelado?" default="flowPrepNormal" />
+
+        <!-- Salida de cancelación: si fue cancelado se notifica el cierre y finaliza -->
+        <sequenceFlow id="flowPrepCancelado" name="Cancelado" sourceRef="xorSalidaPreparacion" targetRef="notificarCierreTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('resultado') == 'cancelado' || execution.getVariable('cancelado') == true}]]></conditionExpression>
+        </sequenceFlow>
 
         <serviceTask id="notificarCierreTask" name="Notificar Cierre"
                      flowable:expression="${cursoProcessService.notificarCierre(execution)}" />
@@ -339,7 +346,7 @@
         <!-- ================================================================= -->
         <!-- 6. Desarrollo y Finalización Normal (Sección 1.4)                 -->
         <!-- ================================================================= -->
-        <sequenceFlow id="flowSubProcessToConfirmacion" sourceRef="subProcessPrepararCurso" targetRef="enviarConfirmacionTask" />
+        <sequenceFlow id="flowPrepNormal" name="Preparación completa" sourceRef="xorSalidaPreparacion" targetRef="enviarConfirmacionTask" />
 
         <serviceTask id="enviarConfirmacionTask" name="Enviar confirmación"
                      flowable:expression="${cursoProcessService.enviarConfirmacion(execution)}" />

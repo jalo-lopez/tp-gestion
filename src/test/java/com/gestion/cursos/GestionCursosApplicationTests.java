@@ -36,6 +36,16 @@ class GestionCursosApplicationTests {
     @Autowired
     private TaskService taskService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void limpiarInstanciasActivas() {
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> {
+                    try {
+                        runtimeService.deleteProcessInstance(pi.getId(), "limpieza de test");
+                    } catch (Exception ignored) {}
+                });
+    }
+
     @Test
     @DisplayName("Debe cargar el contexto de Spring Boot exitosamente")
     void contextLoads() {
@@ -209,6 +219,11 @@ class GestionCursosApplicationTests {
 
         // Empresa cancela voluntariamente
         cursoProcessService.cancelarPreparacion(pid, "Cancelación corporativa imprevista");
+
+        // Actividad User de pausa requerida por la cátedra para verificar orden de compensación
+        Task tareaPausa = taskService.createTaskQuery().processInstanceId(pid).taskName("Dejar una actividad User para que pare").singleResult();
+        assertThat(tareaPausa).isNotNull();
+        taskService.complete(tareaPausa.getId());
 
         // El proceso debe quedar concluido como cancelado
         EstadoCursoResponse estado = cursoProcessService.consultarEstadoCurso(pid);

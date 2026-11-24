@@ -34,6 +34,19 @@ class CursoProcesoControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private org.flowable.engine.RuntimeService runtimeService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void limpiarInstanciasActivas() {
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> {
+                    try {
+                        runtimeService.deleteProcessInstance(pi.getId(), "limpieza de test");
+                    } catch (Exception ignored) {}
+                });
+    }
+
     @Test
     @DisplayName("Debe iniciar proceso, gestionar tareas y simular comunicación por REST API")
     void testEndpointsCicloDeVidaProceso() throws Exception {
@@ -163,5 +176,14 @@ class CursoProcesoControllerTest {
                         .content("{\"username\":\"admin_laura\",\"password\":\"clave_erronea\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.exito").value(false));
+    }
+
+    @Test
+    @DisplayName("Debe precargar todos los escenarios de la defensa correctamente")
+    void testCargarEscenariosDefensa() throws Exception {
+        mockMvc.perform(get("/api/v1/cursos/procesos/defensa/cargar-escenarios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exito").value(true))
+                .andExpect(jsonPath("$.datos.totalInstanciasActivas").value(greaterThanOrEqualTo(5)));
     }
 }

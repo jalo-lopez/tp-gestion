@@ -134,8 +134,11 @@
           <button type="button" id="btn-actualizar" class="boton boton-sec chico" title="Refrescar lista">↻</button>
         </div>
 
-        <!-- Atajo para probar Escenario 7 (Simulación de Falta de Aulas) -->
-        <div class="barra-simulacion">
+        <!-- Atajo para probar Escenarios de la Defensa -->
+        <div class="barra-simulacion" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="btn-cargar-defensa" class="boton chico" style="font-size:0.78rem; padding:0.25rem 0.65rem; background:#0f766e; color:white; border:none; font-weight:600; cursor:pointer; border-radius:var(--r);" title="Precarga todos los escenarios requeridos por la cátedra para la presentación">
+            🎯 Cargar Escenarios Defensa
+          </button>
           <span>⚡ <strong>Escenario 7:</strong></span>
           <span id="badge-estado-aula" class="estado ok" style="font-size:0.75rem;">Aulas normales</span>
           <button type="button" id="btn-toggle-aula" class="boton boton-sec chico" style="font-size:0.78rem; padding:0.2rem 0.5rem;">
@@ -763,6 +766,28 @@
         showToast(err.message, 'error');
       } finally {
         botones.forEach(b => { b.disabled = false; });
+      }
+    });
+
+    // ── Precarga rápida de escenarios para la defensa ──────────────────
+    $('btn-cargar-defensa').addEventListener('click', async () => {
+      const btn = $('btn-cargar-defensa');
+      btn.disabled = true;
+      btn.textContent = '⏳ Cargando escenarios...';
+      try {
+        const res = await fetch('/api/v1/cursos/procesos/defensa/cargar-escenarios', { method: 'POST' });
+        const json = await res.json();
+        if (json.exito) {
+          showToast('🎯 Escenarios de defensa cargados: 5 instancias activas para DMN y flujos listos.', 'success');
+          await cargar();
+        } else {
+          showToast('Aviso: ' + json.mensaje, 'error');
+        }
+      } catch (err) {
+        showToast('Error de red: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🎯 Cargar Escenarios Defensa';
       }
     });
 

@@ -375,6 +375,7 @@ public class CursoProcessService {
         Map<String, Object> vars = new HashMap<>();
         vars.put("motivoCancelacion", motivo != null ? motivo : "Cancelación solicitada por la empresa.");
         vars.put("resultado", "cancelado");
+        vars.put("cancelado", true);
         cursoExternalService.actualizarEstadoCurso(processInstanceId, "cancelado", motivo);
         runtimeService.messageEventReceived("msgRecibirCancelacion", exec.getId(), vars);
     }

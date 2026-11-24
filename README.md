@@ -133,6 +133,22 @@ node simulador.js
 
 ---
 
+## 🎯 Preparación de la Defensa (11 Escenarios)
+
+Para dejar listos todos los escenarios de demostración ante los evaluadores de forma inmediata:
+
+```bash
+# Opción 1: Ejecutar script de preparación rápida
+./scripts/preparar-escenarios-defensa.sh
+
+# Opción 2: Desde el navegador en panel-admin.html
+# Hacer clic en el botón verde superior: "🎯 Cargar Escenarios Defensa"
+```
+
+Consulte el instructivo paso a paso detallado para cada escenario en [docs/GUIA_DEFENSA.md](docs/GUIA_DEFENSA.md).
+
+---
+
 ## 🧪 Pruebas Automatizadas
 
 Para compilar y ejecutar los tests con base de datos H2 en memoria:
