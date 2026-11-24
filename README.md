@@ -1,5 +1,6 @@
 # Gestión de Cursos BPM - Spring Boot & Flowable
 
+Grupo López, De Vigili, Viglione
 Proyecto base desarrollado con **Spring Boot 3.3.5**, **Flowable BPM 7.1.0** y **PostgreSQL / Supabase** para la materia *"Gestión y Tecnologías de Procesos de Negocio"*.
 
 ---
@@ -41,27 +42,6 @@ gestion/
         └── resources/
             └── application-test.yml             # Perfil de test con H2 en memoria
 ```
-
----
-
-## ⚙️ Configuración de Conexión (Supabase / PostgreSQL)
-
-Modificá las variables en `src/main/resources/application.yml` o definí las variables de entorno correspondientes:
-
-```yaml
-spring:
-  datasource:
-    # Supabase (Modo Conexión Directa):
-    url: jdbc:postgresql://db.[TU_PROYECTO_REF].supabase.co:5432/postgres?sslmode=require
-    
-    # O Supabase (Connection Pooler transaccional, puerto 6543):
-    # url: jdbc:postgresql://aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
-    username: postgres
-    password: tu_contraseña_supabase
-```
-
-Al iniciar, Flowable creará automáticamente las tablas del motor (`ACT_RU_*`, `ACT_HI_*`, `ACT_RE_*`, etc.) gracias a `flowable.database-schema-update: true`.
-
 ---
 
 ## 🚀 Endpoints REST
