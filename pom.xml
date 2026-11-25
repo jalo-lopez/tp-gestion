@@ -84,6 +84,13 @@
             <artifactId>h2</artifactId>
         </dependency>
 
+        <!-- FlatLaf Modern Look and Feel (Dark/Light Mode Support) -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.5.4</version>
+        </dependency>
+
         <!-- Spring Boot Starter Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

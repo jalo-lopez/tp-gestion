@@ -73,8 +73,12 @@ public class AppPrepararMateriales {
                 // Modo Interfaz Gráfica (Swing) exigido por la Sección 4.2.1
                 System.out.println("[✓] Iniciando Interfaz Gráfica (GUI Swing - Sección 4.2.1)...");
                 try {
-                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                } catch (Exception ignored) {
+                    com.formdev.flatlaf.FlatDarkLaf.setup();
+                } catch (Throwable t) {
+                    try {
+                        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                    } catch (Exception ignored) {
+                    }
                 }
 
                 final ProcessEngine engineParaGui = processEngine;

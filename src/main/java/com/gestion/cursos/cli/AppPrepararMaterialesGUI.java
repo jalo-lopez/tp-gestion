@@ -1,5 +1,8 @@
 package com.gestion.cursos.cli;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.RuntimeService;
@@ -23,7 +26,10 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Interfaz Gráfica (Swing) para la Aplicación Auxiliar 1 (Sección 4.2.1).
+ * Interfaz Gráfica (Swing con FlatLaf) para la Aplicación Auxiliar 1 (Sección 4.2.1).
+ *
+ * Optimizada para visualización agradable y nítida en entornos oscuros (Dark Mode),
+ * manteniendo legibilidad impecable de textos ("letritas"), tablas, botones y métricas.
  *
  * Permite a un administrativo de la intranet:
  * 1. Identificarse como usuario administrativo (admin_laura, admin_martin, etc.).
@@ -39,7 +45,10 @@ public class AppPrepararMaterialesGUI extends JFrame {
     private final HistoryService historyService;
     private final RuntimeService runtimeService;
 
-    // Componentes de usuario
+    // Componentes de cabecera y tema
+    private JLabel lblTitulo;
+    private JLabel lblSubtitulo;
+    private JButton btnTema;
     private JComboBox<String> cmbUsuario;
     private JLabel lblUsuarioEstado;
 
@@ -53,12 +62,16 @@ public class AppPrepararMaterialesGUI extends JFrame {
     private JRadioButton rbDisponibles;
     private JRadioButton rbMisTareas;
 
+    // Acciones de tarea
     private JLabel lblTareaSeleccionada;
     private JButton btnReclamar;
     private JButton btnCompletar;
     private JTextField txtObservaciones;
     private JLabel lblStatus;
+    private JLabel lblEngine;
+    private JPanel panelSur;
 
+    // Métricas históricas
     private JTextArea txtMetricaResultados;
     private JTextArea txtMetricaDuracion;
     private JTextArea txtMetricaUsuarios;
@@ -66,14 +79,19 @@ public class AppPrepararMaterialesGUI extends JFrame {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public AppPrepararMaterialesGUI(ProcessEngine processEngine) {
-        super("Flowable BPM - Preparación de Materiales (App Auxiliar 1 - Secc. 4.2.1)");
+        super("Flowable BPM - Preparación de Materiales (App Auxiliar 1)");
         this.processEngine = processEngine;
         this.taskService = processEngine.getTaskService();
         this.historyService = processEngine.getHistoryService();
         this.runtimeService = processEngine.getRuntimeService();
 
         initUI();
+        aplicarColoresTema();
         refrescarTareas();
+    }
+
+    private boolean esModoOscuro() {
+        return FlatLaf.isLafDark();
     }
 
     private void initUI() {
@@ -85,14 +103,14 @@ public class AppPrepararMaterialesGUI extends JFrame {
             }
         });
 
-        setSize(1000, 700);
-        setMinimumSize(new Dimension(850, 600));
+        setSize(1050, 720);
+        setMinimumSize(new Dimension(880, 620));
         setLocationRelativeTo(null);
 
-        JPanel panelPrincipal = new JPanel(new BorderLayout(10, 10));
-        panelPrincipal.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel panelPrincipal = new JPanel(new BorderLayout(12, 12));
+        panelPrincipal.setBorder(new EmptyBorder(12, 14, 12, 14));
 
-        // 1. Encabezado con Identificación
+        // 1. Encabezado con Identificación y selector de tema
         JPanel panelNorte = crearPanelNorte();
         panelPrincipal.add(panelNorte, BorderLayout.NORTH);
 
@@ -109,18 +127,18 @@ public class AppPrepararMaterialesGUI extends JFrame {
         panelPrincipal.add(tabbedPane, BorderLayout.CENTER);
 
         // 3. Barra de Estado Inferior
-        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur = new JPanel(new BorderLayout());
         panelSur.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY),
-                new EmptyBorder(5, 5, 5, 5)
+                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(55, 65, 81)),
+                new EmptyBorder(6, 6, 4, 6)
         ));
         lblStatus = new JLabel("Listo. Conectado al motor Flowable BPM mediante API Java.");
         lblStatus.setFont(new Font("SansSerif", Font.PLAIN, 12));
         panelSur.add(lblStatus, BorderLayout.WEST);
 
-        JLabel lblEngine = new JLabel("Flowable Engine v" + ProcessEngine.class.getPackage().getImplementationVersion());
+        String version = ProcessEngine.class.getPackage().getImplementationVersion();
+        lblEngine = new JLabel("Flowable Engine v" + (version != null ? version : "7.1.0"));
         lblEngine.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        lblEngine.setForeground(Color.GRAY);
         panelSur.add(lblEngine, BorderLayout.EAST);
 
         panelPrincipal.add(panelSur, BorderLayout.SOUTH);
@@ -129,22 +147,31 @@ public class AppPrepararMaterialesGUI extends JFrame {
     }
 
     private JPanel crearPanelNorte() {
-        JPanel panelNorte = new JPanel(new BorderLayout(10, 10));
-        JPanel panelTitulo = new JPanel(new GridLayout(2, 1, 2, 2));
-        JLabel lblTitulo = new JLabel("Intranet Administrativa - Preparación de Materiales");
-        lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 18));
-        lblTitulo.setForeground(new Color(25, 45, 95));
+        JPanel panelNorte = new JPanel(new BorderLayout(12, 10));
 
-        JLabel lblSubtitulo = new JLabel("Aplicación Auxiliar 1 (API Java Pura) • Conexión directa a base de datos de Flowable");
+        JPanel panelTitulo = new JPanel(new GridLayout(2, 1, 2, 4));
+        lblTitulo = new JLabel("Intranet Administrativa - Preparación de Materiales");
+        lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 18));
+
+        lblSubtitulo = new JLabel("Aplicación Auxiliar 1 (API Java Pura) • Conexión directa a base de datos de Flowable");
         lblSubtitulo.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        lblSubtitulo.setForeground(Color.DARK_GRAY);
 
         panelTitulo.add(lblTitulo);
         panelTitulo.add(lblSubtitulo);
         panelNorte.add(panelTitulo, BorderLayout.WEST);
 
-        // Identificación de usuarios:
-        JPanel panelIdentificacion = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        // Identificación de usuarios y selector de tema
+        JPanel panelDerecho = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+
+        // Botón cambio de tema (Claro/Oscuro)
+        btnTema = new JButton(esModoOscuro() ? "☀️ Modo Claro" : "🌙 Modo Oscuro");
+        btnTema.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        btnTema.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnTema.setToolTipText("Alternar entre modo oscuro y claro");
+        btnTema.addActionListener(e -> alternarTema());
+        panelDerecho.add(btnTema);
+
+        JPanel panelIdentificacion = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
         panelIdentificacion.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createEtchedBorder(), "Identificación Administrativa",
                 TitledBorder.RIGHT, TitledBorder.TOP, new Font("SansSerif", Font.BOLD, 11)
@@ -157,33 +184,106 @@ public class AppPrepararMaterialesGUI extends JFrame {
         String[] usuariosDefault = {"admin_martin", "admin_laura"};
         cmbUsuario = new JComboBox<>(usuariosDefault);
         cmbUsuario.setEditable(true);
-        cmbUsuario.setPreferredSize(new Dimension(140, 26));
+        cmbUsuario.setPreferredSize(new Dimension(140, 28));
         cmbUsuario.addActionListener(e -> onUsuarioCambiado());
         panelIdentificacion.add(cmbUsuario);
 
         JButton btnIdentificar = new JButton("Aplicar");
+        btnIdentificar.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        btnIdentificar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnIdentificar.setToolTipText("Actualizar contexto al usuario seleccionado");
         btnIdentificar.addActionListener(e -> onUsuarioCambiado());
         panelIdentificacion.add(btnIdentificar);
 
         lblUsuarioEstado = new JLabel("✓ admin_martin (Grupo: Administración)");
         lblUsuarioEstado.setFont(new Font("SansSerif", Font.BOLD, 11));
-        lblUsuarioEstado.setForeground(new Color(0, 128, 0));
         panelIdentificacion.add(lblUsuarioEstado);
 
-        panelNorte.add(panelIdentificacion, BorderLayout.EAST);
+        panelDerecho.add(panelIdentificacion);
+        panelNorte.add(panelDerecho, BorderLayout.EAST);
 
         return panelNorte;
     }
 
+    private void alternarTema() {
+        try {
+            if (esModoOscuro()) {
+                FlatLightLaf.setup();
+                btnTema.setText("🌙 Modo Oscuro");
+            } else {
+                FlatDarkLaf.setup();
+                btnTema.setText("☀️ Modo Claro");
+            }
+            SwingUtilities.updateComponentTreeUI(this);
+            aplicarColoresTema();
+            repaint();
+        } catch (Exception ex) {
+            System.err.println("Error al alternar tema: " + ex.getMessage());
+        }
+    }
+
+    private void aplicarColoresTema() {
+        boolean dark = esModoOscuro();
+
+        // Títulos y subtítulos adaptables
+        if (lblTitulo != null) {
+            lblTitulo.setForeground(dark ? new Color(96, 165, 250) : new Color(30, 58, 138)); // Azul luminoso en oscuro, azul marino en claro
+        }
+        if (lblSubtitulo != null) {
+            lblSubtitulo.setForeground(dark ? new Color(156, 163, 175) : new Color(75, 85, 99));
+        }
+        if (lblUsuarioEstado != null) {
+            lblUsuarioEstado.setForeground(dark ? new Color(74, 222, 128) : new Color(21, 128, 61)); // Verde esmeralda visible
+        }
+        if (lblTareaSeleccionada != null) {
+            lblTareaSeleccionada.setForeground(dark ? new Color(147, 197, 253) : new Color(30, 64, 175));
+        }
+        if (lblEngine != null) {
+            lblEngine.setForeground(dark ? new Color(156, 163, 175) : new Color(107, 114, 128));
+        }
+        if (panelSur != null) {
+            panelSur.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(1, 0, 0, 0, dark ? new Color(55, 65, 81) : new Color(229, 231, 235)),
+                    new EmptyBorder(6, 6, 4, 6)
+            ));
+        }
+
+        // Áreas de texto métricas
+        Color bgMetricas = dark ? new Color(24, 27, 34) : new Color(248, 250, 252);
+        Color fgMetricas = dark ? new Color(229, 231, 235) : new Color(30, 41, 59);
+
+        if (txtMetricaResultados != null) {
+            txtMetricaResultados.setBackground(bgMetricas);
+            txtMetricaResultados.setForeground(fgMetricas);
+        }
+        if (txtMetricaDuracion != null) {
+            txtMetricaDuracion.setBackground(bgMetricas);
+            txtMetricaDuracion.setForeground(fgMetricas);
+        }
+        if (txtMetricaUsuarios != null) {
+            txtMetricaUsuarios.setBackground(bgMetricas);
+            txtMetricaUsuarios.setForeground(fgMetricas);
+        }
+
+        // Botones de acción
+        if (btnCompletar != null) {
+            btnCompletar.setBackground(dark ? new Color(22, 163, 74) : new Color(34, 139, 34));
+            btnCompletar.setForeground(Color.WHITE);
+        }
+        if (btnReclamar != null) {
+            btnReclamar.setBackground(dark ? new Color(37, 99, 235) : new Color(29, 78, 216));
+            btnReclamar.setForeground(Color.WHITE);
+        }
+    }
+
     private JPanel crearPanelTareas() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(new EmptyBorder(10, 5, 5, 5));
+        panel.setBorder(new EmptyBorder(10, 6, 6, 6));
 
         // Barra superior de herramientas y filtros
         JPanel panelToolbar = new JPanel(new BorderLayout());
 
-        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 6));
         JLabel lblFiltrar = new JLabel("Filtrar tareas:");
         lblFiltrar.setFont(new Font("SansSerif", Font.BOLD, 12));
         panelFiltros.add(lblFiltrar);
@@ -207,8 +307,9 @@ public class AppPrepararMaterialesGUI extends JFrame {
 
         panelToolbar.add(panelFiltros, BorderLayout.WEST);
 
-        JButton btnRefrescar = new JButton("Refrescar Tareas");
+        JButton btnRefrescar = new JButton("🔄 Refrescar Tareas");
         btnRefrescar.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnRefrescar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnRefrescar.addActionListener(e -> refrescarTareas());
         panelToolbar.add(btnRefrescar, BorderLayout.EAST);
 
@@ -225,19 +326,35 @@ public class AppPrepararMaterialesGUI extends JFrame {
 
         tablaTareas = new JTable(modeloTareas);
         tablaTareas.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tablaTareas.setRowHeight(24);
+        tablaTareas.setRowHeight(28); // Mayor altura para mejor legibilidad
+        tablaTareas.setShowHorizontalLines(true);
         tablaTareas.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
 
-        // Alineación y colores
+        // Anchos de columna
         tablaTareas.getColumnModel().getColumn(0).setPreferredWidth(160);
-        tablaTareas.getColumnModel().getColumn(1).setPreferredWidth(140);
+        tablaTareas.getColumnModel().getColumn(1).setPreferredWidth(150);
         tablaTareas.getColumnModel().getColumn(2).setPreferredWidth(160);
-        tablaTareas.getColumnModel().getColumn(3).setPreferredWidth(160);
-        tablaTareas.getColumnModel().getColumn(4).setPreferredWidth(110);
-        tablaTareas.getColumnModel().getColumn(5).setPreferredWidth(140);
+        tablaTareas.getColumnModel().getColumn(3).setPreferredWidth(180);
+        tablaTareas.getColumnModel().getColumn(4).setPreferredWidth(120);
+        tablaTareas.getColumnModel().getColumn(5).setPreferredWidth(150);
 
-        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
-        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        // Renderizador centrado respetuoso de temas
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(JLabel.CENTER);
+                if (!isSelected) {
+                    if (column == 3 && value != null && value.toString().contains("Disponible")) {
+                        setForeground(esModoOscuro() ? new Color(74, 222, 128) : new Color(22, 101, 52));
+                    } else {
+                        setForeground(table.getForeground());
+                    }
+                }
+                return c;
+            }
+        };
+
         tablaTareas.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
         tablaTareas.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
 
@@ -248,7 +365,12 @@ public class AppPrepararMaterialesGUI extends JFrame {
         });
 
         JScrollPane scrollTabla = new JScrollPane(tablaTareas);
-        scrollTabla.setBorder(BorderFactory.createTitledBorder("Tareas pendientes de 'Preparar materiales'"));
+        scrollTabla.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(),
+                "Tareas pendientes de 'Preparar materiales'",
+                TitledBorder.LEFT, TitledBorder.TOP,
+                new Font("SansSerif", Font.BOLD, 12)
+        ));
         panel.add(scrollTabla, BorderLayout.CENTER);
 
         // Reclamar / Completar
@@ -266,17 +388,16 @@ public class AppPrepararMaterialesGUI extends JFrame {
         ));
 
         // Info de la tarea seleccionada
-        JPanel panelInfo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JPanel panelInfo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         lblTareaSeleccionada = new JLabel("Ninguna tarea seleccionada en la tabla.");
         lblTareaSeleccionada.setFont(new Font("SansSerif", Font.BOLD, 12));
-        lblTareaSeleccionada.setForeground(Color.DARK_GRAY);
         panelInfo.add(lblTareaSeleccionada);
         panelAcciones.add(panelInfo, BorderLayout.NORTH);
 
         // Formulario y botones
         JPanel panelControles = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(6, 6, 6, 6);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         // Botón reclamar
@@ -285,11 +406,12 @@ public class AppPrepararMaterialesGUI extends JFrame {
         gbc.weightx = 0.0;
         btnReclamar = new JButton("✋ Reclamar Tarea");
         btnReclamar.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnReclamar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnReclamar.setEnabled(false);
         btnReclamar.addActionListener(e -> reclamarTareaSeleccionada());
         panelControles.add(btnReclamar, gbc);
 
-        // observaciones
+        // Observaciones
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
@@ -302,6 +424,7 @@ public class AppPrepararMaterialesGUI extends JFrame {
         gbc.weightx = 1.0;
         txtObservaciones = new JTextField("Materiales impresos y diapositivas listas por " + getUsuarioActual());
         txtObservaciones.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        txtObservaciones.setMargin(new Insets(4, 8, 4, 8));
         panelControles.add(txtObservaciones, gbc);
 
         // Botón completar
@@ -310,8 +433,7 @@ public class AppPrepararMaterialesGUI extends JFrame {
         gbc.weightx = 0.0;
         btnCompletar = new JButton("✓ Completar Tarea");
         btnCompletar.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btnCompletar.setBackground(new Color(34, 139, 34));
-        btnCompletar.setForeground(Color.WHITE);
+        btnCompletar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnCompletar.setEnabled(false);
         btnCompletar.addActionListener(e -> completarTareaSeleccionada());
         panelControles.add(btnCompletar, gbc);
@@ -325,42 +447,57 @@ public class AppPrepararMaterialesGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        JPanel panelTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        JPanel panelTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         JLabel lblIntro = new JLabel("Consultas y Métricas de Rendimiento Histórico (Sección 4.3 de las Especificaciones)");
         lblIntro.setFont(new Font("SansSerif", Font.BOLD, 13));
         panelTop.add(lblIntro);
 
         JButton btnActualizarMetricas = new JButton("📊 Actualizar Métricas");
         btnActualizarMetricas.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnActualizarMetricas.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnActualizarMetricas.addActionListener(e -> cargarMetricas());
         panelTop.add(btnActualizarMetricas);
 
         panel.add(panelTop, BorderLayout.NORTH);
 
-        JPanel panelGrid = new JPanel(new GridLayout(1, 3, 10, 10));
+        JPanel panelGrid = new JPanel(new GridLayout(1, 3, 12, 12));
+
+        Font fontMonospace = obtenerFuenteMonospace();
 
         // Métrica 1
         txtMetricaResultados = new JTextArea();
         txtMetricaResultados.setEditable(false);
-        txtMetricaResultados.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        txtMetricaResultados.setFont(fontMonospace);
+        txtMetricaResultados.setMargin(new Insets(10, 10, 10, 10));
         JScrollPane sp1 = new JScrollPane(txtMetricaResultados);
-        sp1.setBorder(BorderFactory.createTitledBorder("1. Instancias por Resultado (4.3.1)"));
+        sp1.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(), "1. Instancias por Resultado (4.3.1)",
+                TitledBorder.LEFT, TitledBorder.TOP, new Font("SansSerif", Font.BOLD, 12)
+        ));
         panelGrid.add(sp1);
 
         // Métrica 2
         txtMetricaDuracion = new JTextArea();
         txtMetricaDuracion.setEditable(false);
-        txtMetricaDuracion.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        txtMetricaDuracion.setFont(fontMonospace);
+        txtMetricaDuracion.setMargin(new Insets(10, 10, 10, 10));
         JScrollPane sp2 = new JScrollPane(txtMetricaDuracion);
-        sp2.setBorder(BorderFactory.createTitledBorder("2. Duración Ramas Preparación (4.3.2)"));
+        sp2.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(), "2. Duración Ramas Preparación (4.3.2)",
+                TitledBorder.LEFT, TitledBorder.TOP, new Font("SansSerif", Font.BOLD, 12)
+        ));
         panelGrid.add(sp2);
 
         // Métrica 3
         txtMetricaUsuarios = new JTextArea();
         txtMetricaUsuarios.setEditable(false);
-        txtMetricaUsuarios.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        txtMetricaUsuarios.setFont(fontMonospace);
+        txtMetricaUsuarios.setMargin(new Insets(10, 10, 10, 10));
         JScrollPane sp3 = new JScrollPane(txtMetricaUsuarios);
-        sp3.setBorder(BorderFactory.createTitledBorder("3. Tareas por Integrante (4.3.3)"));
+        sp3.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(), "3. Tareas por Integrante (4.3.3)",
+                TitledBorder.LEFT, TitledBorder.TOP, new Font("SansSerif", Font.BOLD, 12)
+        ));
         panelGrid.add(sp3);
 
         panel.add(panelGrid, BorderLayout.CENTER);
@@ -371,7 +508,20 @@ public class AppPrepararMaterialesGUI extends JFrame {
         return panel;
     }
 
-    // LÓGICA DE NEGOCIO Y  FLOWABLE API
+    private Font obtenerFuenteMonospace() {
+        String[] familiasPreferidas = {"JetBrains Mono", "Cascadia Code", "Consolas", "DejaVu Sans Mono", "Monospaced"};
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        Set<String> disponibles = new HashSet<>(Arrays.asList(ge.getAvailableFontFamilyNames()));
+
+        for (String fam : familiasPreferidas) {
+            if (disponibles.contains(fam)) {
+                return new Font(fam, Font.PLAIN, 12);
+            }
+        }
+        return new Font(Font.MONOSPACED, Font.PLAIN, 12);
+    }
+
+    // LÓGICA DE NEGOCIO Y FLOWABLE API
 
     private String getUsuarioActual() {
         Object val = cmbUsuario != null ? cmbUsuario.getSelectedItem() : null;
@@ -503,13 +653,13 @@ public class AppPrepararMaterialesGUI extends JFrame {
         boolean disponible = (assignee == null || assignee.trim().isEmpty());
         boolean esMia = usuario.equalsIgnoreCase(assignee);
 
-        lblTareaSeleccionada.setText(String.format("Tarea seleccionada: [%s] | Instancia: [%s] | Estado actual: %s",
+        lblTareaSeleccionada.setText(String.format("Tarea: [%s] | Instancia: [%s] | Estado: %s",
                 t.getId(), t.getProcessInstanceId(),
-                disponible ? "DISPONIBLE" : ("ASIGNADA A " + assignee)));
+                disponible ? "DISPONIBLE PARA RECLAMAR" : ("ASIGNADA A " + assignee.toUpperCase())));
 
         // Botón reclamar: habilitado si está disponible o asignada a otro (transferible en administración)
         btnReclamar.setEnabled(disponible || !esMia);
-        btnReclamar.setText(disponible ? "Reclamar Tarea" : "Reasignar a " + usuario);
+        btnReclamar.setText(disponible ? "✋ Reclamar Tarea" : "🔄 Reasignar a " + usuario);
 
         // Botón completar: habilitado si está asignada a mí o si está disponible (la reclama automáticamente y completa)
         btnCompletar.setEnabled(true);
